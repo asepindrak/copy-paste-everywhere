@@ -39,7 +39,7 @@
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - PostgreSQL database
 
 ### Installation
@@ -54,7 +54,7 @@
 2. **Install dependencies**
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. **Environment Setup**
