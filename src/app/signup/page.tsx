@@ -30,30 +30,29 @@ export default function SignupPage() {
       setIsLoading(false);
 
       if (!response.ok) {
-        setError(data.error || "Gagal membuat akun. Coba lagi.");
+        setError(data.error || "Failed to create account. Please try again.");
         return;
       }
 
-      setSuccess("Akun berhasil dibuat. Silakan masuk.");
+      setSuccess("Account created successfully. Redirecting to login...");
       setTimeout(() => router.push("/login"), 1200);
     } catch (err) {
       setIsLoading(false);
-      setError("Terjadi kesalahan. Silakan coba lagi nanti.");
+      setError("An error occurred. Please try again later.");
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Daftar</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Sign Up</h1>
         <p className="text-sm text-slate-600 mb-8">
-          Buat akun baru untuk mulai menyimpan clipboard Anda di semua
-          perangkat.
+          Create a new account to start syncing your clipboard across all your devices.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <label className="block text-sm font-medium text-slate-700">
-            Nama
+            Name
             <input
               type="text"
               value={name}
@@ -74,7 +73,7 @@ export default function SignupPage() {
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
-            Kata Sandi
+            Password
             <input
               type="password"
               value={password}
@@ -92,17 +91,17 @@ export default function SignupPage() {
             disabled={isLoading}
             className="w-full rounded-2xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLoading ? "Memproses..." : "Daftar"}
+            {isLoading ? "Processing..." : "Sign Up"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-600">
-          Sudah punya akun?{" "}
+          Already have an account?{" "}
           <Link
             href="/login"
             className="font-semibold text-blue-600 hover:underline"
           >
-            Masuk di sini
+            Login here
           </Link>
         </p>
       </div>

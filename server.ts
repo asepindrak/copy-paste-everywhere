@@ -111,7 +111,7 @@ io.on("connection", (socket) => {
       callback: (ack: ClipboardUpdateAck) => void,
     ) => {
       if (!payload || typeof payload.content !== "string") {
-        return callback({ error: "Payload clipboard tidak valid." });
+        return callback({ error: "Invalid clipboard payload." });
       }
 
       try {
@@ -133,7 +133,7 @@ io.on("connection", (socket) => {
         callback({ item: result });
       } catch (error) {
         console.error("Database error in clipboard:update:", error);
-        callback({ error: "Gagal menyimpan clipboard realtime." });
+        callback({ error: "Failed to save clipboard in real-time." });
       }
     },
   );

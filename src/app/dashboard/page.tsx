@@ -19,7 +19,7 @@ interface ClipboardUpdateAck {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-
+  
   const [content, setContent] = useState("");
   const [history, setHistory] = useState<CopyItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const lastContentRef = useRef(content);
 
   const isAuthenticated = status === "authenticated";
-
+  
   // Use a more stable socket URL
   const socketUrl = useMemo(() => {
     if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -50,7 +50,7 @@ export default function DashboardPage() {
   const loadHistory = useCallback(async () => {
     try {
       const res = await fetch("/api/copy-items");
-      if (!res.ok) throw new Error("Gagal memuat history copy.");
+      if (!res.ok) throw new Error("Failed to load copy history.");
       const items: CopyItem[] = await res.json();
       setHistory(items);
       if (items.length > 0) {
@@ -58,7 +58,7 @@ export default function DashboardPage() {
         lastContentRef.current = items[0].content;
       }
     } catch (err) {
-      setError((err as Error).message || "Terjadi kesalahan saat memuat history.");
+      setError((err as Error).message || "An error occurred while loading history.");
     }
   }, []);
 
@@ -90,7 +90,7 @@ export default function DashboardPage() {
     socket.on("connect_error", (err) => {
       console.error("Socket connection error:", err);
       setIsConnected(false);
-      setError(`Koneksi realtime bermasalah: ${err.message}`);
+      setError(`Realtime connection issue: ${err.message}`);
     });
 
     socket.on("clipboard:updated", (item: CopyItem) => {
@@ -99,13 +99,13 @@ export default function DashboardPage() {
         item,
         ...prev.filter((existing) => existing.id !== item.id),
       ]);
-
+      
       // Only update content if it's different to avoid cursor jumps
       if (item.content !== lastContentRef.current) {
         setContent(item.content);
         lastContentRef.current = item.content;
       }
-
+      
       setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
       setIsSaving(false);
     });
@@ -135,9 +135,9 @@ export default function DashboardPage() {
 
       timeout = setTimeout(() => {
         const socket = socketRef.current;
-
+        
         if (!socket?.connected) {
-          setError("Realtime belum terhubung. Perubahan disimpan secara lokal.");
+          setError("Realtime not connected. Changes saved locally.");
           return;
         }
 
@@ -174,7 +174,7 @@ export default function DashboardPage() {
       await navigator.clipboard.writeText(text);
       // Optional: show a toast or feedback
     } catch {
-      setError("Gagal menyalin ke clipboard. Tolong izinkan akses clipboard.");
+      setError("Failed to copy to clipboard. Please allow clipboard access.");
     }
   };
 
@@ -184,11 +184,11 @@ export default function DashboardPage() {
       setContent(text);
       debouncedUpdate(text);
       setError(null);
-
+      
       setPasted(true);
       setTimeout(() => setPasted(false), 2000);
     } catch {
-      setError("Gagal membaca clipboard. Tolong izinkan akses clipboard.");
+      setError("Failed to read clipboard. Please allow clipboard access.");
     }
   };
 
@@ -201,7 +201,7 @@ export default function DashboardPage() {
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <div className="text-xl font-medium animate-pulse">Memuat...</div>
+        <div className="text-xl font-medium animate-pulse">Loading...</div>
       </div>
     );
   }
@@ -216,10 +216,10 @@ export default function DashboardPage() {
                 Copy Paste <span className="text-blue-500">Everywhere</span>
               </h1>
               <p className="max-w-2xl text-lg text-slate-400">
-                Sinkronisasi clipboard antar perangkat secara private dan real-time.
+                Synchronize clipboard across devices privately and in real-time.
               </p>
             </div>
-
+            
             <div className="flex items-center gap-4 rounded-2xl bg-slate-950/50 p-4 border border-slate-800">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-white">{session?.user?.email}</p>
@@ -245,7 +245,7 @@ export default function DashboardPage() {
             </div>
             <div className="h-4 w-px bg-slate-800 hidden sm:block" />
             <span className="text-sm text-slate-400">
-              {lastSavedAt ? `Update terakhir: ${lastSavedAt}` : "Belum ada sinkronisasi"}
+              {lastSavedAt ? `Last update: ${lastSavedAt}` : "No synchronization yet"}
             </span>
           </div>
         </header>
@@ -272,9 +272,9 @@ export default function DashboardPage() {
                       title="Copy all text"
                     >
                       {copied ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                       )}
                       {copied ? "Copied!" : "Copy All"}
                     </button>
@@ -285,16 +285,16 @@ export default function DashboardPage() {
                       title="Paste and replace all text"
                     >
                       {pasted ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
                       )}
                       {pasted ? "Pasted!" : "Paste"}
                     </button>
                   </div>
                   {isSaving && (
                     <span className="text-xs text-blue-400 animate-pulse font-medium">
-                      Menyimpan...
+                      Saving...
                     </span>
                   )}
                   <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20">
@@ -306,7 +306,7 @@ export default function DashboardPage() {
               <textarea
                 value={content}
                 onChange={handleChange}
-                placeholder="Tulis atau tempel teks di sini..."
+                placeholder="Write or paste text here..."
                 className="min-h-[400px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner"
               />
             </section>
@@ -317,11 +317,11 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <span>🕒</span> History
               </h2>
-
+              
               <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                 {history.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center">
-                    <p className="text-slate-500 text-sm">Belum ada history clipboard.</p>
+                    <p className="text-slate-500 text-sm">No clipboard history yet.</p>
                   </div>
                 ) : (
                   history.map((item) => (
@@ -338,11 +338,11 @@ export default function DashboardPage() {
                           className="rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white"
                           title="Copy to clipboard"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                         </button>
                       </div>
                       <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
-                        {item.content || <span className="italic text-slate-600">(Kosong)</span>}
+                        {item.content || <span className="italic text-slate-600">(Empty)</span>}
                       </p>
                     </div>
                   ))

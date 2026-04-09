@@ -26,7 +26,7 @@ export default function LoginPage() {
     setIsLoading(false);
 
     if (result?.error) {
-      setError("Email atau password salah. Silakan coba lagi.");
+      setError("Invalid email or password. Please try again.");
       return;
     }
 
@@ -36,9 +36,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Masuk</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Login</h1>
         <p className="text-sm text-slate-600 mb-8">
-          Masukkan email dan kata sandi untuk mengakses clipboard Anda.
+          Enter your email and password to access your clipboard.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -54,7 +54,7 @@ export default function LoginPage() {
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
-            Kata Sandi
+            Password
             <input
               type="password"
               value={password}
@@ -71,17 +71,17 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full rounded-2xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLoading ? "Memproses..." : "Masuk"}
+            {isLoading ? "Processing..." : "Login"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-600">
-          Belum punya akun?{" "}
+          Don't have an account?{" "}
           <Link
             href="/signup"
             className="font-semibold text-blue-600 hover:underline"
           >
-            Daftar sekarang
+            Sign up now
           </Link>
         </p>
       </div>
