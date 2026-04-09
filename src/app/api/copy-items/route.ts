@@ -23,12 +23,18 @@ export async function GET(req: NextRequest) {
       // Fetch a larger chunk to filter in memory
       // Note: In a massive scale app, we would use blind indexing.
       // For a clipboard app, fetching recent 200 items and filtering is fast and secure.
-      const allItems = await prisma.copyItem.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "desc" },
-        // If we have a cursor, we start from there
-        ...(cursor ? { skip: 1, cursor: { id: cursor } } : { take: 500 }),
-      });
+      const allItems = cursor
+        ? await prisma.copyItem.findMany({
+            where: { userId: session.user.id },
+            orderBy: { createdAt: "desc" },
+            skip: 1,
+            cursor: { id: cursor },
+          })
+        : await prisma.copyItem.findMany({
+            where: { userId: session.user.id },
+            orderBy: { createdAt: "desc" },
+            take: 500,
+          });
 
       const filteredItems = [];
       let nextCursor: string | null = null;
@@ -77,7 +83,7 @@ export async function GET(req: NextRequest) {
     console.error("Failed to fetch copy items:", error);
     return NextResponse.json(
       { error: "Failed to fetch copy items" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

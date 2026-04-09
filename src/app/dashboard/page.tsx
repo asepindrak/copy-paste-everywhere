@@ -51,7 +51,8 @@ export default function DashboardPage() {
 
   // Use a more stable socket URL
   const socketUrl = useMemo(() => {
-    if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (process.env.NEXT_PUBLIC_SOCKET_URL)
+      return process.env.NEXT_PUBLIC_SOCKET_URL;
     if (typeof window !== "undefined") return window.location.origin;
     return "";
   }, []);
@@ -70,40 +71,49 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const loadHistory = useCallback(async (cursor: string | null = null, isInitial: boolean = false, currentSearch: string = "") => {
-    if (isLoadingMore || (!hasMore && !isInitial)) return;
+  const loadHistory = useCallback(
+    async (
+      cursor: string | null = null,
+      isInitial: boolean = false,
+      currentSearch: string = "",
+    ) => {
+      if (isLoadingMore || (!hasMore && !isInitial)) return;
 
-    setIsLoadingMore(true);
-    try {
-      const url = new URL("/api/copy-items", window.location.origin);
-      if (cursor) url.searchParams.set("cursor", cursor);
-      if (currentSearch) url.searchParams.set("search", currentSearch);
-      url.searchParams.set("limit", "20");
+      setIsLoadingMore(true);
+      try {
+        const url = new URL("/api/copy-items", window.location.origin);
+        if (cursor) url.searchParams.set("cursor", cursor);
+        if (currentSearch) url.searchParams.set("search", currentSearch);
+        url.searchParams.set("limit", "20");
 
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error("Failed to load copy history.");
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Failed to load copy history.");
 
-      const data: FetchHistoryResponse = await res.json();
+        const data: FetchHistoryResponse = await res.json();
 
-      if (isInitial) {
-        setHistory(data.items);
-        // Only set content on truly initial load (not search)
-        if (data.items.length > 0 && !currentSearch && !cursor) {
-          setContent(data.items[0].content);
-          lastContentRef.current = data.items[0].content;
+        if (isInitial) {
+          setHistory(data.items);
+          // Only set content on truly initial load (not search)
+          if (data.items.length > 0 && !currentSearch && !cursor) {
+            setContent(data.items[0].content);
+            lastContentRef.current = data.items[0].content;
+          }
+        } else {
+          setHistory((prev) => [...prev, ...data.items]);
         }
-      } else {
-        setHistory((prev) => [...prev, ...data.items]);
-      }
 
-      setNextCursor(data.nextCursor);
-      setHasMore(!!data.nextCursor);
-    } catch (err) {
-      setError((err as Error).message || "An error occurred while loading history.");
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [isLoadingMore, hasMore]);
+        setNextCursor(data.nextCursor);
+        setHasMore(!!data.nextCursor);
+      } catch (err) {
+        setError(
+          (err as Error).message || "An error occurred while loading history.",
+        );
+      } finally {
+        setIsLoadingMore(false);
+      }
+    },
+    [isLoadingMore, hasMore],
+  );
 
   // Initial load or search change
   useEffect(() => {
@@ -119,11 +129,14 @@ export default function DashboardPage() {
 
     if (observerRef.current) observerRef.current.disconnect();
 
-    observerRef.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-        loadHistory(nextCursor, false, debouncedSearch);
-      }
-    }, { threshold: 0.1 });
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadHistory(nextCursor, false, debouncedSearch);
+        }
+      },
+      { threshold: 0.1 },
+    );
 
     if (loadMoreRef.current) {
       observerRef.current.observe(loadMoreRef.current);
@@ -165,7 +178,10 @@ export default function DashboardPage() {
       // Only add to history if content is not empty
       if (item.content.trim()) {
         // Only add to history if it matches current search (or no search)
-        if (!debouncedSearch || item.content.toLowerCase().includes(debouncedSearch.toLowerCase())) {
+        if (
+          !debouncedSearch ||
+          item.content.toLowerCase().includes(debouncedSearch.toLowerCase())
+        ) {
           setHistory((prev) => [
             item,
             ...prev.filter((existing) => existing.id !== item.id),
@@ -305,21 +321,30 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               <div className="flex-shrink-0">
-                <Image src="/logo.png" alt="Logo" width={70} height={70} className="rounded-2xl shadow-xl" />
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  width={70}
+                  height={70}
+                  className="rounded-2xl shadow-xl"
+                />
               </div>
               <div className="space-y-2">
                 <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
                   Copy Paste <span className="text-blue-500">Everywhere</span>
                 </h1>
                 <p className="max-w-2xl text-lg text-slate-400">
-                  Synchronize clipboard across devices privately and in real-time.
+                  Synchronize clipboard across devices privately and in
+                  real-time.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-4 rounded-2xl bg-slate-950/50 p-4 border border-slate-800">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-white">{session?.user?.email}</p>
+                <p className="text-sm font-medium text-white">
+                  {session?.user?.email}
+                </p>
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
                   className="text-xs text-red-400 hover:text-red-300 transition"
@@ -335,14 +360,18 @@ export default function DashboardPage() {
 
           <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-slate-800 pt-6">
             <div className="flex items-center gap-2">
-              <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+              <div
+                className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+              />
               <span className="text-sm font-medium text-slate-300">
                 {isConnected ? "Realtime Connected" : "Realtime Disconnected"}
               </span>
             </div>
             <div className="h-4 w-px bg-slate-800 hidden sm:block" />
             <span className="text-sm text-slate-400">
-              {lastSavedAt ? `Last update: ${lastSavedAt}` : "No synchronization yet"}
+              {lastSavedAt
+                ? `Last update: ${lastSavedAt}`
+                : "No synchronization yet"}
             </span>
           </div>
         </header>
@@ -369,9 +398,41 @@ export default function DashboardPage() {
                       title="Copy all text"
                     >
                       {copied ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect
+                            width="14"
+                            height="14"
+                            x="8"
+                            y="8"
+                            rx="2"
+                            ry="2"
+                          />
+                          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                        </svg>
                       )}
                       {copied ? "Copied!" : "Copy All"}
                     </button>
@@ -382,9 +443,41 @@ export default function DashboardPage() {
                       title="Paste and replace all text"
                     >
                       {pasted ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect
+                            width="8"
+                            height="4"
+                            x="8"
+                            y="2"
+                            rx="1"
+                            ry="1"
+                          />
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        </svg>
                       )}
                       {pasted ? "Pasted!" : "Paste"}
                     </button>
@@ -394,7 +487,21 @@ export default function DashboardPage() {
                       className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition flex items-center gap-1.5"
                       title="Clear editor"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      </svg>
                       Clear
                     </button>
                   </div>
@@ -430,12 +537,25 @@ export default function DashboardPage() {
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(event.target.value)}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search history..."
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 outline-none focus:border-blue-500/50 transition"
                   />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
                   </span>
                 </div>
               </div>
@@ -444,7 +564,9 @@ export default function DashboardPage() {
                 {history.length === 0 && !isLoadingMore ? (
                   <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center mt-4">
                     <p className="text-slate-500 text-sm">
-                      {searchQuery ? "No matching history found." : "No clipboard history yet."}
+                      {searchQuery
+                        ? "No matching history found."
+                        : "No clipboard history yet."}
                     </p>
                   </div>
                 ) : (
@@ -457,7 +579,11 @@ export default function DashboardPage() {
                         >
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              {new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(item.createdAt).toLocaleDateString()}{" "}
+                              {new Date(item.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </span>
                             <div className="flex items-center gap-1">
                               <button
@@ -465,19 +591,59 @@ export default function DashboardPage() {
                                 className="rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white"
                                 title="Copy to clipboard"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <rect
+                                    width="14"
+                                    height="14"
+                                    x="8"
+                                    y="8"
+                                    rx="2"
+                                    ry="2"
+                                  />
+                                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
                               </button>
                               <button
                                 onClick={() => handleDelete(item.id)}
                                 className="rounded-lg bg-red-600/10 p-2 text-red-400 opacity-0 transition group-hover:opacity-100 hover:bg-red-600 hover:text-white"
                                 title="Delete item"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                  <line x1="10" x2="10" y1="11" y2="17" />
+                                  <line x1="14" x2="14" y1="11" y2="17" />
+                                </svg>
                               </button>
                             </div>
                           </div>
                           <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
-                            {item.content || <span className="italic text-slate-600">(Empty)</span>}
+                            {item.content || (
+                              <span className="italic text-slate-600">
+                                (Empty)
+                              </span>
+                            )}
                           </p>
                         </div>
                       ))}
@@ -492,7 +658,9 @@ export default function DashboardPage() {
                         </div>
                       )}
                       {!hasMore && history.length > 0 && (
-                        <p className="text-slate-600 text-[10px] italic uppercase tracking-widest text-center w-full">End of history</p>
+                        <p className="text-slate-600 text-[10px] italic uppercase tracking-widest text-center w-full">
+                          End of history
+                        </p>
                       )}
                     </div>
                   </>
