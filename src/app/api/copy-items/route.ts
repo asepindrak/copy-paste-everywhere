@@ -11,14 +11,28 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    const cursor = searchParams.get("cursor");
+    const limit = parseInt(searchParams.get("limit") || "20");
+
     const prisma = getPrisma();
     const copyItems = await prisma.copyItem.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: limit + 1, // Fetch one extra to determine if there's more
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
-    return NextResponse.json(copyItems);
+    let nextCursor: string | null = null;
+    if (copyItems.length > limit) {
+      const nextItem = copyItems.pop();
+      nextCursor = nextItem!.id;
+    }
+
+    return NextResponse.json({
+      items: copyItems,
+      nextCursor,
+    });
   } catch (error) {
     console.error("Failed to fetch copy items:", error);
     return NextResponse.json(

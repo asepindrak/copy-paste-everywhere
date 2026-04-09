@@ -17,10 +17,15 @@ interface ClipboardUpdateAck {
   error?: string;
 }
 
+interface FetchHistoryResponse {
+  items: CopyItem[];
+  nextCursor: string | null;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-
+  
   const [content, setContent] = useState("");
   const [history, setHistory] = useState<CopyItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +35,18 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false);
   const [pasted, setPasted] = useState(false);
 
+  // Pagination states
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
   const socketRef = useRef<Socket | null>(null);
   const lastContentRef = useRef(content);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const isAuthenticated = status === "authenticated";
-
+  
   // Use a more stable socket URL
   const socketUrl = useMemo(() => {
     if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -48,26 +60,66 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (cursor: string | null = null, isInitial: boolean = false) => {
+    if (isLoadingMore || (!hasMore && !isInitial)) return;
+    
+    setIsLoadingMore(true);
     try {
-      const res = await fetch("/api/copy-items");
+      const url = new URL("/api/copy-items", window.location.origin);
+      if (cursor) url.searchParams.set("cursor", cursor);
+      url.searchParams.set("limit", "20");
+
+      const res = await fetch(url.toString());
       if (!res.ok) throw new Error("Failed to load copy history.");
-      const items: CopyItem[] = await res.json();
-      setHistory(items);
-      if (items.length > 0) {
-        setContent(items[0].content);
-        lastContentRef.current = items[0].content;
+      
+      const data: FetchHistoryResponse = await res.json();
+      
+      if (isInitial) {
+        setHistory(data.items);
+        if (data.items.length > 0) {
+          setContent(data.items[0].content);
+          lastContentRef.current = data.items[0].content;
+        }
+      } else {
+        setHistory((prev) => [...prev, ...data.items]);
       }
+      
+      setNextCursor(data.nextCursor);
+      setHasMore(!!data.nextCursor);
     } catch (err) {
       setError((err as Error).message || "An error occurred while loading history.");
+    } finally {
+      setIsLoadingMore(false);
     }
-  }, []);
+  }, [isLoadingMore, hasMore]);
 
+  // Initial load
   useEffect(() => {
     if (isAuthenticated) {
-      loadHistory();
+      loadHistory(null, true);
     }
-  }, [isAuthenticated, loadHistory]);
+  }, [isAuthenticated]); // Only run once on mount/auth
+
+  // Intersection Observer for Infinite Scroll
+  useEffect(() => {
+    if (!hasMore || isLoadingMore) return;
+
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+        loadHistory(nextCursor);
+      }
+    }, { threshold: 0.1 });
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [nextCursor, hasMore, isLoadingMore, loadHistory]);
 
   // Socket Connection Lifecycle
   useEffect(() => {
@@ -100,13 +152,13 @@ export default function DashboardPage() {
         item,
         ...prev.filter((existing) => existing.id !== item.id),
       ]);
-
+      
       // Only update content if it's different to avoid cursor jumps
       if (item.content !== lastContentRef.current) {
         setContent(item.content);
         lastContentRef.current = item.content;
       }
-
+      
       setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
       setIsSaving(false);
     });
@@ -136,7 +188,7 @@ export default function DashboardPage() {
 
       timeout = setTimeout(() => {
         const socket = socketRef.current;
-
+        
         if (!socket?.connected) {
           setError("Realtime not connected. Changes saved locally.");
           return;
@@ -185,7 +237,7 @@ export default function DashboardPage() {
       setContent(text);
       debouncedUpdate(text);
       setError(null);
-
+      
       setPasted(true);
       setTimeout(() => setPasted(false), 2000);
     } catch {
@@ -225,7 +277,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-
+            
             <div className="flex items-center gap-4 rounded-2xl bg-slate-950/50 p-4 border border-slate-800">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-white">{session?.user?.email}</p>
@@ -278,9 +330,9 @@ export default function DashboardPage() {
                       title="Copy all text"
                     >
                       {copied ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                       )}
                       {copied ? "Copied!" : "Copy All"}
                     </button>
@@ -291,9 +343,9 @@ export default function DashboardPage() {
                       title="Paste and replace all text"
                     >
                       {pasted ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
                       )}
                       {pasted ? "Pasted!" : "Paste"}
                     </button>
@@ -323,35 +375,50 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <span>🕒</span> History
               </h2>
-
+              
               <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                {history.length === 0 ? (
+                {history.length === 0 && !isLoadingMore ? (
                   <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center">
                     <p className="text-slate-500 text-sm">No clipboard history yet.</p>
                   </div>
                 ) : (
-                  history.map((item) => (
-                    <div
-                      key={item.id}
-                      className="group relative rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          {new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <button
-                          onClick={() => handleCopy(item.content)}
-                          className="rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white"
-                          title="Copy to clipboard"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
-                        </button>
+                  <>
+                    {history.map((item) => (
+                      <div
+                        key={item.id}
+                        className="group relative rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            {new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <button
+                            onClick={() => handleCopy(item.content)}
+                            className="rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white"
+                            title="Copy to clipboard"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                          </button>
+                        </div>
+                        <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
+                          {item.content || <span className="italic text-slate-600">(Empty)</span>}
+                        </p>
                       </div>
-                      <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
-                        {item.content || <span className="italic text-slate-600">(Empty)</span>}
-                      </p>
+                    ))}
+                    
+                    {/* Infinite scroll loader element */}
+                    <div ref={loadMoreRef} className="py-4 flex justify-center">
+                      {isLoadingMore && (
+                        <div className="flex items-center gap-2 text-slate-500 text-sm">
+                          <div className="h-4 w-4 border-2 border-slate-700 border-t-blue-500 rounded-full animate-spin" />
+                          <span>Loading more...</span>
+                        </div>
+                      )}
+                      {!hasMore && history.length > 0 && (
+                        <p className="text-slate-600 text-xs italic">End of history</p>
+                      )}
                     </div>
-                  ))
+                  </>
                 )}
               </div>
             </section>
