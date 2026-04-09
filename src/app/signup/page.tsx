@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -44,9 +45,12 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Sign Up</h1>
-        <p className="text-sm text-slate-600 mb-8">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8 text-center">
+        <div className="flex justify-center mb-6">
+          <Image src="/logo.png" alt="Logo" width={80} height={80} className="rounded-2xl shadow-lg" />
+        </div>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2 text-left">Sign Up</h1>
+        <p className="text-sm text-slate-600 mb-8 text-left">
           Create a new account to start syncing your clipboard across all your devices.
         </p>
 

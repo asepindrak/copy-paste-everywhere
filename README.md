@@ -1,5 +1,9 @@
 # Copy Paste Everywhere 📋✨
 
+<p align="center">
+  <img src="public/logo.png" alt="Copy Paste Everywhere Logo" width="120" />
+</p>
+
 **Copy Paste Everywhere** is a lightweight, private, and real-time clipboard synchronization tool. It allows you to sync your clipboard content across all your devices instantly using WebSockets.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)

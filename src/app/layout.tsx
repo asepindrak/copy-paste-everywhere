@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Copy Paste Everywhere",
   description: "Share your clipboard across devices instantly",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

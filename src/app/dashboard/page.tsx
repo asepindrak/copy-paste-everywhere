@@ -4,6 +4,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
+import Image from "next/image";
 
 interface CopyItem {
   id: string;
@@ -19,7 +20,7 @@ interface ClipboardUpdateAck {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [content, setContent] = useState("");
   const [history, setHistory] = useState<CopyItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export default function DashboardPage() {
   const lastContentRef = useRef(content);
 
   const isAuthenticated = status === "authenticated";
-  
+
   // Use a more stable socket URL
   const socketUrl = useMemo(() => {
     if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -99,13 +100,13 @@ export default function DashboardPage() {
         item,
         ...prev.filter((existing) => existing.id !== item.id),
       ]);
-      
+
       // Only update content if it's different to avoid cursor jumps
       if (item.content !== lastContentRef.current) {
         setContent(item.content);
         lastContentRef.current = item.content;
       }
-      
+
       setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
       setIsSaving(false);
     });
@@ -135,7 +136,7 @@ export default function DashboardPage() {
 
       timeout = setTimeout(() => {
         const socket = socketRef.current;
-        
+
         if (!socket?.connected) {
           setError("Realtime not connected. Changes saved locally.");
           return;
@@ -184,7 +185,7 @@ export default function DashboardPage() {
       setContent(text);
       debouncedUpdate(text);
       setError(null);
-      
+
       setPasted(true);
       setTimeout(() => setPasted(false), 2000);
     } catch {
@@ -211,15 +212,20 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-10 rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                Copy Paste <span className="text-blue-500">Everywhere</span>
-              </h1>
-              <p className="max-w-2xl text-lg text-slate-400">
-                Synchronize clipboard across devices privately and in real-time.
-              </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex-shrink-0">
+                <Image src="/logo.png" alt="Logo" width={70} height={70} className="rounded-2xl shadow-xl" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                  Copy Paste <span className="text-blue-500">Everywhere</span>
+                </h1>
+                <p className="max-w-2xl text-lg text-slate-400">
+                  Synchronize clipboard across devices privately and in real-time.
+                </p>
+              </div>
             </div>
-            
+
             <div className="flex items-center gap-4 rounded-2xl bg-slate-950/50 p-4 border border-slate-800">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-white">{session?.user?.email}</p>
@@ -272,9 +278,9 @@ export default function DashboardPage() {
                       title="Copy all text"
                     >
                       {copied ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
                       )}
                       {copied ? "Copied!" : "Copy All"}
                     </button>
@@ -285,9 +291,9 @@ export default function DashboardPage() {
                       title="Paste and replace all text"
                     >
                       {pasted ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
                       )}
                       {pasted ? "Pasted!" : "Paste"}
                     </button>
@@ -317,7 +323,7 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <span>🕒</span> History
               </h2>
-              
+
               <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                 {history.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center">
@@ -338,7 +344,7 @@ export default function DashboardPage() {
                           className="rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white"
                           title="Copy to clipboard"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
                         </button>
                       </div>
                       <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
