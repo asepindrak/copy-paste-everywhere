@@ -1,7 +1,5 @@
 import { hash, compare } from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { getPrisma } from "./prisma";
 
 export async function hashPassword(password: string): Promise<string> {
   const saltRounds = 10;
@@ -10,12 +8,13 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(
   password: string,
-  hashedPassword: string
+  hashedPassword: string,
 ): Promise<boolean> {
   return compare(password, hashedPassword);
 }
 
 export async function getUserByEmail(email: string) {
+  const prisma = getPrisma();
   return prisma.user.findUnique({
     where: { email },
   });
@@ -24,9 +23,10 @@ export async function getUserByEmail(email: string) {
 export async function createUser(
   email: string,
   password: string,
-  name?: string
+  name?: string,
 ) {
   const hashedPassword = await hashPassword(password);
+  const prisma = getPrisma();
   return prisma.user.create({
     data: {
       email,

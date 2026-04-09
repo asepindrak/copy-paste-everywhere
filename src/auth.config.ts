@@ -1,13 +1,19 @@
 import NextAuth from "next-auth";
+import type { Session, User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getUserByEmail, verifyPassword } from "./lib/auth";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "you@example.com" },
+        email: {
+          label: "Email",
+          type: "email",
+          placeholder: "you@example.com",
+        },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -22,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const passwordMatch = await verifyPassword(
           credentials.password as string,
-          user.password
+          user.password,
         );
 
         if (!passwordMatch) {
@@ -41,17 +47,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
         session.user.id = token.id as string;
       }
       return session;
     },
   },
-});
+};
+
+const handler = NextAuth(authOptions);
+export default handler;

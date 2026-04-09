@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth.config";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth.config";
+import { getPrisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    const prisma = getPrisma();
     const copyItems = await prisma.copyItem.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -23,25 +23,26 @@ export async function GET(req: NextRequest) {
     console.error("Failed to fetch copy items:", error);
     return NextResponse.json(
       { error: "Failed to fetch copy items" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    const prisma = getPrisma();
     const { content } = await req.json();
 
     if (!content) {
       return NextResponse.json(
         { error: "Content is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -57,19 +58,20 @@ export async function POST(req: NextRequest) {
     console.error("Failed to create copy item:", error);
     return NextResponse.json(
       { error: "Failed to create copy item" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    const prisma = getPrisma();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -84,7 +86,7 @@ export async function DELETE(req: NextRequest) {
     if (!copyItem || copyItem.userId !== session.user.id) {
       return NextResponse.json(
         { error: "Copy item not found or unauthorized" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -97,7 +99,7 @@ export async function DELETE(req: NextRequest) {
     console.error("Failed to delete copy item:", error);
     return NextResponse.json(
       { error: "Failed to delete copy item" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
