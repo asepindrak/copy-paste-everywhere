@@ -8,7 +8,7 @@
   <img src="copy-paste-everywhere.png" alt="Copy Paste Everywhere Preview" width="100%" style="max-width: 920px;" />
 </p>
 
-**Copy Paste Everywhere** is a lightweight, private, and real-time clipboard synchronization tool. It allows you to sync your clipboard content across all your devices instantly using WebSockets.
+**Copy Paste Everywhere** is a lightweight, private, and real-time clipboard synchronization tool. It allows you to sync text and images across all your devices instantly using WebSockets.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
 ![Socket.io](https://img.shields.io/badge/Socket.io-4.8-blue?style=flat-square&logo=socket.io)
