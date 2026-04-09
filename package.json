@@ -2,6 +2,9 @@
   "name": "copy-paste-everywhere",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "cross-env NODE_ENV=development TS_NODE_COMPILER_OPTIONS=\"{\\\"module\\\":\\\"commonjs\\\"}\" ts-node server.ts",
     "build": "next build && tsc server.ts --outDir dist --module commonjs --esModuleInterop --skipLibCheck",
