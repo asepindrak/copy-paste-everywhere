@@ -21,7 +21,9 @@ const pool = new pg.Pool({
   host: connectionConfig.host || undefined,
   port: connectionConfig.port ? parseInt(connectionConfig.port, 10) : undefined,
   database: connectionConfig.database || undefined,
-  ssl: databaseUrl.includes("sslmode=require") ? { rejectUnauthorized: false } : false
+  ssl: (databaseUrl.includes("sslmode=require") || databaseUrl.includes("sslmode=verify-full"))
+    ? { rejectUnauthorized: false }
+    : false
 });
 
 const adapter = new PrismaPg(pool);

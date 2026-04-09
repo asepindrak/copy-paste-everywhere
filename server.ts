@@ -7,7 +7,6 @@ import { Server } from "socket.io";
 import * as cookie from "cookie";
 import { getToken } from "next-auth/jwt";
 import { getPrisma } from "./src/lib/prisma";
-import { encrypt } from "./src/lib/crypto";
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT ?? 3000);
@@ -127,17 +126,16 @@ io.on("connection", (socket) => {
           return callback({ item: result });
         }
 
-        const encryptedContent = encrypt(payload.content);
         const item = await getPrisma().copyItem.create({
           data: {
-            content: encryptedContent,
+            content: payload.content,
             userId,
           },
         });
 
         const result = {
           id: item.id,
-          content: payload.content, // Send original content to clients
+          content: item.content,
           createdAt: item.createdAt.toISOString(),
         };
 

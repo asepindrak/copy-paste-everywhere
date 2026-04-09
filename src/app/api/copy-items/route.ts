@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { getPrisma } from "@/lib/prisma";
-import { decrypt } from "@/lib/crypto";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -36,9 +35,8 @@ export async function GET(req: NextRequest) {
       const searchLower = search.toLowerCase();
 
       for (const item of allItems) {
-        const decryptedContent = decrypt(item.content);
-        if (decryptedContent.toLowerCase().includes(searchLower)) {
-          filteredItems.push({ ...item, content: decryptedContent });
+        if (item.content.toLowerCase().includes(searchLower)) {
+          filteredItems.push(item);
         }
 
         if (filteredItems.length === limit) {
@@ -72,10 +70,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      items: copyItems.map(item => ({
-        ...item,
-        content: decrypt(item.content)
-      })),
+      items: copyItems,
       nextCursor,
     });
   } catch (error) {
