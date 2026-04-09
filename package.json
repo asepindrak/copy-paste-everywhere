@@ -1,6 +1,6 @@
 {
   "name": "copy-paste-everywhere",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A private real-time clipboard sync app with support for text, images, and drag & drop.",
   "keywords": [
     "clipboard",
