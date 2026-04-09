@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import * as cookie from "cookie";
 import { getToken } from "next-auth/jwt";
 import { getPrisma } from "./src/lib/prisma";
+import { encrypt } from "./src/lib/crypto";
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT ?? 3000);
@@ -115,16 +116,28 @@ io.on("connection", (socket) => {
       }
 
       try {
+        // If content is empty or whitespace only, broadcast but don't save to DB
+        if (!payload.content.trim()) {
+          const result = {
+            id: "temporary-empty",
+            content: "",
+            createdAt: new Date().toISOString(),
+          };
+          io.to(room).emit("clipboard:updated", result);
+          return callback({ item: result });
+        }
+
+        const encryptedContent = encrypt(payload.content);
         const item = await getPrisma().copyItem.create({
           data: {
-            content: payload.content,
+            content: encryptedContent,
             userId,
           },
         });
 
         const result = {
           id: item.id,
-          content: item.content,
+          content: payload.content, // Send original content to clients
           createdAt: item.createdAt.toISOString(),
         };
 

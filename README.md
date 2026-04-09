@@ -1,4 +1,4 @@
-# Copy Paste Everywhere 📋✨
+# Copy Paste Everywhere
 
 <p align="center">
   <img src="public/logo.png" alt="Copy Paste Everywhere Logo" width="120" />
