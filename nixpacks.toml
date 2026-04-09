@@ -1,6 +1,6 @@
-[providers]
-node = { node = "20" }
+providers = ["node"]
 
 [variables]
 NODE_ENV = "production"
 NPM_CONFIG_UPDATE_NOTIFIER = "false"
+NIXPACKS_NODE_VERSION = "20"
