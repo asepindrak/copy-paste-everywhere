@@ -41,6 +41,10 @@ export async function GET(req: NextRequest) {
       const searchLower = search.toLowerCase();
 
       for (const item of allItems) {
+        if (/^data:image\/[a-zA-Z]+;base64,/.test(item.content)) {
+          continue;
+        }
+
         if (item.content.toLowerCase().includes(searchLower)) {
           filteredItems.push(item);
         }

@@ -35,40 +35,46 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-slate-950/90 backdrop-blur rounded-3xl border border-slate-800 shadow-2xl p-8 text-center">
         <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="Logo" width={80} height={80} className="rounded-2xl shadow-lg" />
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={80}
+            height={80}
+            className="rounded-2xl shadow-lg"
+          />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Login</h1>
-        <p className="text-sm text-slate-600 mb-8 text-left">
+        <h1 className="text-3xl font-bold text-white mb-2">Login</h1>
+        <p className="text-sm text-slate-400 mb-8 text-left">
           Enter your email and password to access your clipboard.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-200">
             Email
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-200">
             Password
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
           <button
             type="submit"
@@ -79,11 +85,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-600">
-          Don't have an account?{" "}
+        <p className="mt-6 text-center text-sm text-slate-400">
+          Don&apos;t have an account?{" "}
           <Link
             href="/signup"
-            className="font-semibold text-blue-600 hover:underline"
+            className="font-semibold text-blue-400 hover:underline"
           >
             Sign up now
           </Link>

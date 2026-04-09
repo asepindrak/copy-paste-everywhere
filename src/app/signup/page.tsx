@@ -37,58 +37,69 @@ export default function SignupPage() {
 
       setSuccess("Account created successfully. Redirecting to login...");
       setTimeout(() => router.push("/login"), 1200);
-    } catch (err) {
+    } catch {
       setIsLoading(false);
       setError("An error occurred. Please try again later.");
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-slate-950/90 backdrop-blur rounded-3xl border border-slate-800 shadow-2xl p-8 text-center">
         <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="Logo" width={80} height={80} className="rounded-2xl shadow-lg" />
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={80}
+            height={80}
+            className="rounded-2xl shadow-lg"
+          />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2 text-left">Sign Up</h1>
-        <p className="text-sm text-slate-600 mb-8 text-left">
-          Create a new account to start syncing your clipboard across all your devices.
+        <h1 className="text-3xl font-bold text-white mb-2 text-left">
+          Sign Up
+        </h1>
+        <p className="text-sm text-slate-400 mb-8 text-left">
+          Create a new account to start syncing your clipboard across all your
+          devices.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-200">
             Name
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-200">
             Email
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-200">
             Password
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {success ? <p className="text-sm text-green-600">{success}</p> : null}
+          {error ? <p className="text-sm text-red-500">{error}</p> : null}
+          {success ? (
+            <p className="text-sm text-emerald-400">{success}</p>
+          ) : null}
 
           <button
             type="submit"
@@ -99,11 +110,11 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-600">
+        <p className="mt-6 text-center text-sm text-slate-400">
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-semibold text-blue-600 hover:underline"
+            className="font-semibold text-blue-400 hover:underline"
           >
             Login here
           </Link>

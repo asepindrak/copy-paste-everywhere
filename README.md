@@ -4,6 +4,10 @@
   <img src="public/logo.png" alt="Copy Paste Everywhere Logo" width="120" />
 </p>
 
+<p align="center">
+  <img src="copy-paste-everywhere.png" alt="Copy Paste Everywhere Preview" width="100%" style="max-width: 920px;" />
+</p>
+
 **Copy Paste Everywhere** is a lightweight, private, and real-time clipboard synchronization tool. It allows you to sync your clipboard content across all your devices instantly using WebSockets.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
@@ -16,6 +20,8 @@
 - **Real-time Sync**: Instant synchronization across all connected devices using Socket.io.
 - **Private & Secure**: Built-in authentication with NextAuth.js. Each user has their own private clipboard history.
 - **Live Editor**: A simple, intuitive interface to write or paste text.
+- **Image Support**: Paste images directly or drag & drop images into the dashboard for instant clipboard syncing.
+- **Drag & Drop**: Easily drag files or images into the editor area to add them to your clipboard history.
 - **History Tracking**: Keep track of your previous clipboard items.
 - **One-Click Actions**: "Copy All" and "Paste & Replace" buttons with visual feedback animations.
 - **Modern UI**: Clean, responsive dark-themed dashboard built with Tailwind CSS.
@@ -33,24 +39,27 @@
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - PostgreSQL database
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/asepindrak/copy-paste-everywhere.git
    cd copy-paste-everywhere
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Environment Setup**
    Create a `.env` file in the root directory (refer to `.env.example`):
+
    ```env
    DATABASE_URL="postgresql://user:password@localhost:5432/database"
    NEXTAUTH_SECRET="your-secret-key"
@@ -59,6 +68,7 @@
    ```
 
 4. **Database Migration**
+
    ```bash
    npx prisma generate
    npx prisma db push
