@@ -574,7 +574,8 @@ export default function DashboardPage() {
                 </h1>
                 <p className="max-w-2xl text-lg text-slate-400">
                   Synchronize clipboard across devices privately and in
-                  real-time.
+                  real-time. Copy/paste text or images, and drag & drop an image
+                  directly into the editor.
                 </p>
               </div>
             </div>
@@ -833,7 +834,7 @@ export default function DashboardPage() {
                     value={content}
                     onChange={handleChange}
                     onPaste={handlePasteEvent}
-                    placeholder="Write or paste text here..."
+                    placeholder="Write or paste text here, or drag & drop an image..."
                     className="min-h-[400px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner"
                   />
                 )}
