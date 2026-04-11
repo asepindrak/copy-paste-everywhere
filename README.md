@@ -20,6 +20,8 @@
 - **Real-time Sync**: Instant synchronization across all connected devices using Socket.io.
 - **Private & Secure**: Built-in authentication with NextAuth.js. Each user has their own private clipboard history.
 - **Live Editor**: A simple, intuitive interface to write or paste text.
+- **Image Gallery**: Browse and preview copied images, then copy, download, or delete them from a dedicated gallery modal.
+- **File Gallery**: Browse copied files with search, metadata badges, and one-click download/delete actions.
 - **Image & File Support**: Paste images directly or drag & drop files into the dashboard for instant clipboard syncing.
 - **S3-compatible Storage**: Optional file upload support for AWS S3 or S3-compatible endpoints, with backward compatibility for existing database image items.
 - **Downloadable Items**: Download uploaded files directly from the dashboard.

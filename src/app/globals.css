@@ -24,3 +24,58 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+.gradient-border {
+  background: linear-gradient(90deg, #22d3ee, #38bdf8, #3b82f6);
+  padding: 1px;
+  border-radius: inherit;
+  background-size: 200% 200%;
+}
+
+.animate-border {
+  animation: borderShift 4s linear infinite;
+}
+
+@keyframes borderShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.animated-gradient-text {
+  background-size: 200% 200%;
+  animation: gradientTextShift 6s ease infinite;
+}
+
+@keyframes gradientTextShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-border {
+  background: linear-gradient(90deg, #22d3ee, #38bdf8, #3b82f6);
+  padding: 1px;
+  background-size: 200% 200%;
+  overflow: hidden;
+}
+
+.gradient-border.rounded-xl {
+  border-radius: 0.75rem;
+}
+
+.gradient-border.rounded-2xl {
+  border-radius: 1rem;
+}
+
+.animate-border {
+  animation: borderShift 4s linear infinite;
+}

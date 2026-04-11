@@ -30,23 +30,19 @@ import {
 } from "react-icons/fa";
 import Image from "next/image";
 import packageJson from "../../../package.json";
-
-interface CopyItem {
-  id: string;
-  content: string;
-  fileName?: string | null;
-  workspaceId?: string | null;
-  createdAt: string;
-}
+import DashboardToast from "./components/DashboardToast";
+import WorkspaceModal from "./components/WorkspaceModal";
+import ClearAllModal from "./components/ClearAllModal";
+import ImageGalleryModal from "./components/ImageGalleryModal";
+import FileGalleryModal from "./components/FileGalleryModal";
+import HistoryPreviewModal from "./components/HistoryPreviewModal";
+import LiveEditor from "./components/LiveEditor";
+import HistorySidebar from "./components/HistorySidebar";
+import type { CopyItem, FetchHistoryResponse } from "../../types/dashboard";
 
 interface ClipboardUpdateAck {
   item?: CopyItem;
   error?: string;
-}
-
-interface FetchHistoryResponse {
-  items: CopyItem[];
-  nextCursor: string | null;
 }
 
 type ClipboardReadItem = {
@@ -245,7 +241,8 @@ export default function DashboardPage() {
   };
 
   const activeWorkspaceName = selectedWorkspaceId
-    ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId)?.name
+    ? (workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
+        ?.name ?? null)
     : null;
 
   const workspaceOptions = useMemo<WorkspaceOption[]>(
@@ -1702,159 +1699,24 @@ export default function DashboardPage() {
         </section>
 
         {isWorkspaceModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-            <div className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    Workspace Manager
-                  </h2>
-                  <p className="text-sm text-slate-400">
-                    Create a workspace or invite teammates to the selected
-                    workspace.
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Active workspace:{" "}
-                    <span className="font-semibold text-white">
-                      {activeWorkspaceName ?? "Personal clipboard"}
-                    </span>
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsWorkspaceModalOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
-                  aria-label="Close workspace manager"
-                >
-                  <FaTimes className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="space-y-6 overflow-y-auto p-6 custom-scrollbar">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
-                  <label
-                    className="block text-sm font-medium text-slate-300"
-                    htmlFor="workspace-name-modal"
-                  >
-                    New workspace name
-                  </label>
-                  <div className="mt-3 flex gap-2">
-                    <input
-                      id="workspace-name-modal"
-                      value={workspaceCreateName}
-                      onChange={(event) =>
-                        setWorkspaceCreateName(event.target.value)
-                      }
-                      className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                      placeholder="Team clipboard"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleCreateWorkspace}
-                      disabled={isWorkspaceSaving}
-                      className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isWorkspaceSaving ? "Creating..." : "Create Workspace"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
-                  <label
-                    className="block text-sm font-medium text-slate-300"
-                    htmlFor="workspace-select-modal"
-                  >
-                    Select workspace for invites
-                  </label>
-                  <div className="mt-3">
-                    <Select
-                      instanceId="workspace-select-modal"
-                      inputId="workspace-select-modal-input"
-                      options={workspaceOptions}
-                      value={selectedWorkspaceOption}
-                      onChange={handleWorkspaceSelect}
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                      styles={{
-                        control: (base) => ({
-                          ...base,
-                          backgroundColor: "#0f172a",
-                          borderColor: "#334155",
-                          color: "#fff",
-                          minHeight: "42px",
-                        }),
-                        singleValue: (base) => ({
-                          ...base,
-                          color: "#fff",
-                        }),
-                        menu: (base) => ({
-                          ...base,
-                          backgroundColor: "#0f172a",
-                        }),
-                        option: (base, state) => ({
-                          ...base,
-                          backgroundColor: state.isFocused
-                            ? "#1e293b"
-                            : "#0f172a",
-                          color: state.isSelected ? "#fff" : "#cbd5e1",
-                        }),
-                      }}
-                      theme={(theme) => ({
-                        ...theme,
-                        borderRadius: 12,
-                        colors: {
-                          ...theme.colors,
-                          primary25: "#1e293b",
-                          primary: "#3b82f6",
-                          neutral0: "#0f172a",
-                          neutral80: "#e2e8f0",
-                        },
-                      })}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
-                  <label
-                    className="block text-sm font-medium text-slate-300"
-                    htmlFor="invite-email-modal"
-                  >
-                    Invite teammate by email
-                  </label>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="invite-email-modal"
-                      type="email"
-                      value={workspaceInviteEmail}
-                      onChange={(event) =>
-                        setWorkspaceInviteEmail(event.target.value)
-                      }
-                      className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                      placeholder="name@example.com"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSendInvite}
-                      disabled={isInviteSaving || !selectedWorkspaceId}
-                      className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isInviteSaving ? "Sending..." : "Send Invite"}
-                    </button>
-                  </div>
-                  {!selectedWorkspaceId && (
-                    <p className="mt-2 text-sm text-slate-500">
-                      Select an active workspace before inviting teammates.
-                    </p>
-                  )}
-                </div>
-
-                {workspaceInfo && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
-                    {workspaceInfo}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <WorkspaceModal
+            activeWorkspaceName={activeWorkspaceName}
+            workspaceOptions={workspaceOptions}
+            selectedWorkspaceOption={selectedWorkspaceOption}
+            workspaceCreateName={workspaceCreateName}
+            workspaceInviteEmail={workspaceInviteEmail}
+            workspaceInfo={workspaceInfo}
+            pendingInvites={pendingInvites}
+            isWorkspaceSaving={isWorkspaceSaving}
+            isInviteSaving={isInviteSaving}
+            onClose={() => setIsWorkspaceModalOpen(false)}
+            onWorkspaceCreateNameChange={setWorkspaceCreateName}
+            onWorkspaceInviteEmailChange={setWorkspaceInviteEmail}
+            onWorkspaceSelect={handleWorkspaceSelect}
+            onCreateWorkspace={handleCreateWorkspace}
+            onSendInvite={handleSendInvite}
+            onAcceptInvite={handleAcceptInvite}
+          />
         )}
 
         {isClearAllModalOpen && (
@@ -1922,335 +1784,37 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {isImageGalleryOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-            <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    Image Gallery
-                  </h2>
-                  <p className="text-sm text-slate-400">
-                    Browse your copied images in one place.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsImageGalleryOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
-                  aria-label="Close image gallery"
-                >
-                  <FaTimes className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="border-b border-slate-800 bg-slate-950/80 px-6 py-4">
-                <input
-                  type="text"
-                  value={imageGallerySearch}
-                  onChange={(event) =>
-                    setImageGallerySearch(event.target.value)
-                  }
-                  placeholder="Search images..."
-                  className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/50 focus:ring-blue-500/10"
-                />
-              </div>
-              <div className="grid max-h-[72vh] gap-4 overflow-y-auto p-6 custom-scrollbar">
-                {imageGalleryItems.length === 0 ? (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-8 text-center text-slate-400">
-                    No images match your search.
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {imageGalleryItems.map((item, index) => (
-                      <div
-                        key={`${item.id}-${index}`}
-                        className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
-                      >
-                        <div className="mb-3 flex items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate text-sm font-semibold text-white">
-                              {item.fileName ??
-                                getFileNameFromUrl(item.content)}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {getFileSize(item.content) ?? "Unknown size"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewImageIndex(index)}
-                            className="group block h-48 w-full overflow-hidden"
-                            title="Preview image"
-                          >
-                            <Image
-                              src={getImageSrc(item.content)}
-                              alt={item.fileName ?? "Gallery image"}
-                              width={600}
-                              height={400}
-                              unoptimized
-                              className="h-48 w-full object-contain transition duration-150 ease-in-out group-hover:scale-[1.01]"
-                            />
-                          </button>
-                        </div>
-                        <div className="mt-4 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(item.content, item.id)}
-                            disabled={copyingIds.includes(item.id)}
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-500 ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                            title={
-                              copyingIds.includes(item.id)
-                                ? "Copying..."
-                                : "Copy image"
-                            }
-                            aria-label="Copy image"
-                          >
-                            {copyingIds.includes(item.id) ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="animate-spin"
-                              >
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  className="opacity-25"
-                                />
-                                <path d="M12 4v4" />
-                              </svg>
-                            ) : (
-                              <FaCopy className="h-4 w-4" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              downloadContent(
-                                item.content,
-                                item.fileName ??
-                                  getFileNameFromUrl(item.content),
-                                item.id,
-                              )
-                            }
-                            disabled={downloadingIds.includes(item.id)}
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-200 transition hover:bg-slate-900 ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                            title={
-                              downloadingIds.includes(item.id)
-                                ? "Downloading..."
-                                : "Download image"
-                            }
-                            aria-label="Download image"
-                          >
-                            {downloadingIds.includes(item.id) ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="animate-spin"
-                              >
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  className="opacity-25"
-                                />
-                                <path d="M12 4v4" />
-                              </svg>
-                            ) : (
-                              <FaDownload className="h-4 w-4" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(item.id)}
-                            disabled={deletingIds.includes(item.id)}
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-300 transition hover:bg-red-600/10 hover:text-white ${deletingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                            title={
-                              deletingIds.includes(item.id)
-                                ? "Deleting..."
-                                : "Delete image"
-                            }
-                            aria-label="Delete image"
-                          >
-                            {deletingIds.includes(item.id) ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="animate-spin"
-                              >
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  className="opacity-25"
-                                />
-                                <path d="M12 4v4" />
-                              </svg>
-                            ) : (
-                              <FaTrash className="h-4 w-4 text-red-500" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div
-                  ref={imageGalleryLoadMoreRef}
-                  className="py-4 flex justify-center"
-                >
-                  {isImageGalleryLoadingMore ? (
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
-                      <div className="h-4 w-4 rounded-full border-2 border-slate-700 border-t-blue-500 animate-spin" />
-                      Loading more images...
-                    </div>
-                  ) : imageGalleryHasMore ? (
-                    <p className="text-slate-500 text-sm">
-                      Scroll to load more images.
-                    </p>
-                  ) : (
-                    <p className="text-slate-500 text-sm">
-                      End of image gallery.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <ImageGalleryModal
+          isOpen={isImageGalleryOpen}
+          searchValue={imageGallerySearch}
+          items={imageGalleryItems}
+          previewImageIndex={previewImageIndex}
+          copyingIds={copyingIds}
+          downloadingIds={downloadingIds}
+          deletingIds={deletingIds}
+          isLoadingMore={isImageGalleryLoadingMore}
+          hasMore={imageGalleryHasMore}
+          loadMoreRef={imageGalleryLoadMoreRef}
+          onClose={() => setIsImageGalleryOpen(false)}
+          onSearchChange={setImageGallerySearch}
+          onPreviewImageIndexChange={setPreviewImageIndex}
+          onCopy={handleCopy}
+          onDownload={downloadContent}
+          onDelete={handleDelete}
+          getFileNameFromUrl={getFileNameFromUrl}
+          getFileSize={getFileSize}
+          getImageSrc={getImageSrc}
+        />
 
-        {historyPreviewItem !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-4 py-6">
-            <div className="absolute inset-0" />
-            <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    Preview image
-                  </h2>
-                  <p className="text-sm text-slate-400">
-                    Preview an image from clipboard history.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setHistoryPreviewItem(null)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
-                  aria-label="Close preview"
-                >
-                  <FaTimes className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="p-6">
-                <div className="mx-auto max-h-[70vh] w-full overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-4">
-                  <Image
-                    src={getImageSrc(historyPreviewItem.content)}
-                    alt={historyPreviewItem.fileName ?? "Preview image"}
-                    width={1200}
-                    height={900}
-                    unoptimized
-                    className="mx-auto max-h-[62vh] w-full object-contain"
-                  />
-                </div>
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleCopy(
-                        historyPreviewItem.content,
-                        historyPreviewItem.id,
-                      );
-                    }}
-                    disabled={copyingIds.includes(historyPreviewItem.id)}
-                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white transition ${copyingIds.includes(historyPreviewItem.id) ? "bg-blue-500/70 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
-                  >
-                    {copyingIds.includes(historyPreviewItem.id) ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="animate-spin"
-                      >
-                        <circle cx="12" cy="12" r="8" className="opacity-25" />
-                        <path d="M12 4v4" />
-                      </svg>
-                    ) : (
-                      <FaCopy className="h-4 w-4" />
-                    )}
-                    {copyingIds.includes(historyPreviewItem.id)
-                      ? "Copying..."
-                      : "Copy"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      downloadContent(
-                        historyPreviewItem.content,
-                        historyPreviewItem.fileName ??
-                          getFileNameFromUrl(historyPreviewItem.content),
-                        historyPreviewItem.id,
-                      )
-                    }
-                    disabled={downloadingIds.includes(historyPreviewItem.id)}
-                    className={`inline-flex items-center gap-2 rounded-2xl border border-slate-700 px-4 py-2 text-sm font-semibold transition ${downloadingIds.includes(historyPreviewItem.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-slate-950 text-slate-200 hover:bg-slate-900"}`}
-                  >
-                    {downloadingIds.includes(historyPreviewItem.id) ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="animate-spin"
-                      >
-                        <circle cx="12" cy="12" r="8" className="opacity-25" />
-                        <path d="M12 4v4" />
-                      </svg>
-                    ) : (
-                      <FaDownload className="h-4 w-4" />
-                    )}
-                    {downloadingIds.includes(historyPreviewItem.id)
-                      ? "Downloading..."
-                      : "Download"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <HistoryPreviewModal
+          item={historyPreviewItem}
+          onClose={() => setHistoryPreviewItem(null)}
+          onCopy={handleCopy}
+          onDownload={downloadContent}
+          copyingIds={copyingIds}
+          downloadingIds={downloadingIds}
+          getFileNameFromUrl={getFileNameFromUrl}
+        />
         {previewImage !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95">
             <div className="absolute inset-0" />
@@ -2390,209 +1954,25 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {isFileGalleryOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-            <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    File Gallery
-                  </h2>
-                  <p className="text-sm text-slate-400">
-                    Browse your copied files in one place.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsFileGalleryOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
-                  aria-label="Close file gallery"
-                >
-                  <FaTimes className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="border-b border-slate-800 bg-slate-950/80 px-6 py-4">
-                <input
-                  type="text"
-                  value={fileGallerySearch}
-                  onChange={(event) => setFileGallerySearch(event.target.value)}
-                  placeholder="Search files..."
-                  className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/50 focus:ring-blue-500/10"
-                />
-              </div>
-              <div className="grid max-h-[72vh] gap-4 overflow-y-auto p-6 custom-scrollbar">
-                {fileGalleryItems.length === 0 ? (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-8 text-center text-slate-400">
-                    {fileGallerySearch
-                      ? "No files match your search."
-                      : "No files available in the gallery."}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {fileGalleryItems.map((item, index) => (
-                      <div
-                        key={`${item.id}-${index}`}
-                        className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
-                      >
-                        <div className="mb-3 flex items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate text-sm font-semibold text-white">
-                              {item.fileName ??
-                                getFileNameFromUrl(item.content)}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {getFileType(item.content) ?? "FILE"} ·{" "}
-                              {getFileSize(item.content) ?? "Unknown size"}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(item.id)}
-                            disabled={deletingIds.includes(item.id)}
-                            className={`shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-300 transition hover:bg-red-600/10 hover:text-white ${deletingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                            title={
-                              deletingIds.includes(item.id)
-                                ? "Deleting..."
-                                : "Delete file"
-                            }
-                            aria-label="Delete file"
-                          >
-                            {deletingIds.includes(item.id) ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="animate-spin"
-                              >
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  className="opacity-25"
-                                />
-                                <path d="M12 4v4" />
-                              </svg>
-                            ) : (
-                              <FaTrash className="h-4 w-4 text-red-500" />
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(item.content, item.id)}
-                            disabled={copyingIds.includes(item.id)}
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-500 ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                            title={
-                              copyingIds.includes(item.id)
-                                ? "Copying..."
-                                : "Copy URL"
-                            }
-                            aria-label="Copy URL"
-                          >
-                            {copyingIds.includes(item.id) ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="animate-spin"
-                              >
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  className="opacity-25"
-                                />
-                                <path d="M12 4v4" />
-                              </svg>
-                            ) : (
-                              <FaCopy className="h-4 w-4" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              downloadContent(
-                                item.content,
-                                item.fileName ??
-                                  getFileNameFromUrl(item.content),
-                                item.id,
-                              )
-                            }
-                            disabled={downloadingIds.includes(item.id)}
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-200 transition hover:bg-slate-900 ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                            title={
-                              downloadingIds.includes(item.id)
-                                ? "Downloading..."
-                                : "Download file"
-                            }
-                            aria-label="Download file"
-                          >
-                            {downloadingIds.includes(item.id) ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="animate-spin"
-                              >
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  className="opacity-25"
-                                />
-                                <path d="M12 4v4" />
-                              </svg>
-                            ) : (
-                              <FaDownload className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div
-                  ref={fileGalleryLoadMoreRef}
-                  className="py-4 flex justify-center"
-                >
-                  {isFileGalleryLoadingMore ? (
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
-                      <div className="h-4 w-4 rounded-full border-2 border-slate-700 border-t-blue-500 animate-spin" />
-                      Loading more files...
-                    </div>
-                  ) : fileGalleryHasMore ? (
-                    <p className="text-slate-500 text-sm">
-                      Scroll to load more files.
-                    </p>
-                  ) : (
-                    <p className="text-slate-500 text-sm">
-                      End of file gallery.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <FileGalleryModal
+          isOpen={isFileGalleryOpen}
+          searchValue={fileGallerySearch}
+          items={fileGalleryItems}
+          copyingIds={copyingIds}
+          downloadingIds={downloadingIds}
+          deletingIds={deletingIds}
+          isLoadingMore={isFileGalleryLoadingMore}
+          hasMore={fileGalleryHasMore}
+          loadMoreRef={fileGalleryLoadMoreRef}
+          onClose={() => setIsFileGalleryOpen(false)}
+          onSearchChange={setFileGallerySearch}
+          onCopy={handleCopy}
+          onDownload={downloadContent}
+          onDelete={handleDelete}
+          getFileNameFromUrl={getFileNameFromUrl}
+          getFileType={getFileType}
+          getFileSize={getFileSize}
+        />
 
         {error && (
           <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-3">
@@ -2601,562 +1981,59 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 rounded-2xl border border-emerald-500/20 bg-slate-950/95 px-4 py-3 text-sm text-emerald-200 shadow-2xl backdrop-blur-sm transition-opacity duration-200">
-            {toastMessage}
-          </div>
-        )}
+        {toastMessage && <DashboardToast message={toastMessage} />}
 
         <div className="grid gap-8 lg:grid-cols-3">
-          <main className="lg:col-span-2 space-y-6">
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl min-h-[600px]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <FaEdit className="h-5 w-5 text-blue-400" /> Live Editor
-                </h2>
-                <div className="flex items-center gap-3">
-                  <div className="flex bg-slate-950 rounded-2xl p-1 border border-slate-800 mr-2">
-                    <button
-                      onClick={handleCopyAll}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 ${copied ? "text-emerald-400 bg-emerald-500/10" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
-                      title={
-                        contentType === "image" ? "Copy image" : "Copy all text"
-                      }
-                    >
-                      {copied ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect
-                            width="14"
-                            height="14"
-                            x="8"
-                            y="8"
-                            rx="2"
-                            ry="2"
-                          />
-                          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                        </svg>
-                      )}
-                      {copied
-                        ? "Copied!"
-                        : contentType === "image"
-                          ? "Copy Image"
-                          : "Copy All"}
-                    </button>
-                    <div className="w-px h-4 bg-slate-800 self-center" />
-                    <button
-                      onClick={handlePaste}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 ${pasted ? "text-emerald-400 bg-emerald-500/10" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
-                      title="Paste and replace all text"
-                    >
-                      {pasted ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect
-                            width="8"
-                            height="4"
-                            x="8"
-                            y="2"
-                            rx="1"
-                            ry="1"
-                          />
-                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                        </svg>
-                      )}
-                      {pasted ? "Pasted!" : "Paste"}
-                    </button>
-                    <div className="w-px h-4 bg-slate-800 self-center" />
-                    <button
-                      onClick={handleClear}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition flex items-center gap-1.5"
-                      title="Clear editor"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                      </svg>
-                      Clear
-                    </button>
-                  </div>
-                  {isSaving && (
-                    <span className="text-xs text-blue-400 animate-pulse font-medium">
-                      Saving...
-                    </span>
-                  )}
-                  {isUploading && (
-                    <div className="ml-4 flex min-w-[180px] flex-col gap-2">
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                        <div
-                          className="h-full bg-blue-500 transition-all"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                        Uploading {uploadProgress}%
-                      </span>
-                    </div>
-                  )}
-                  <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20">
-                    Auto-save
-                  </span>
-                </div>
-              </div>
+          <LiveEditor
+            content={content}
+            contentType={contentType}
+            copied={copied}
+            pasted={pasted}
+            isSaving={isSaving}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            currentFileName={currentFileName}
+            currentFileSize={currentFileSize}
+            isDragActive={isDragActive}
+            onCopyAll={handleCopyAll}
+            onPaste={handlePaste}
+            onClear={handleClear}
+            onChange={handleChange}
+            onPasteEvent={handlePasteEvent}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            downloadContent={downloadContent}
+            getImageSrc={getImageSrc}
+            getFileNameFromUrl={getFileNameFromUrl}
+            getFileType={getFileType}
+            isRemoteFile={isRemoteFile}
+          />
 
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`relative min-h-[400px] w-full overflow-hidden rounded-2xl border p-6 transition ${isDragActive ? "border-blue-400 bg-slate-900" : "border-slate-800 bg-slate-950"}`}
-              >
-                {contentType === "image" ? (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <Image
-                      src={getImageSrc(content)}
-                      alt="Pasted clipboard image"
-                      width={800}
-                      height={600}
-                      unoptimized
-                      className="max-h-[340px] w-full rounded-2xl object-contain"
-                    />
-                    <p className="mt-4 text-sm text-slate-400">
-                      Image detected. Use the Paste button to replace the image
-                      or Clear to reset.
-                    </p>
-                  </div>
-                ) : isRemoteFile(content) ? (
-                  <div className="flex min-h-[400px] w-full flex-col justify-center rounded-2xl border border-slate-800 bg-slate-950 p-8 text-center text-slate-300">
-                    <div className="mb-4 text-sm text-slate-400">
-                      File uploaded successfully.
-                    </div>
-                    <div className="mb-3 flex items-center justify-center gap-2">
-                      <p className="font-semibold text-white">
-                        {currentFileName || getFileNameFromUrl(content)}
-                      </p>
-                      {getFileType(content) && (
-                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                          {getFileType(content)}
-                        </span>
-                      )}
-                      {currentFileSize && (
-                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                          {currentFileSize}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      {getFileNameFromUrl(content)}
-                    </p>
-                    <button
-                      onClick={() => downloadContent(content)}
-                      className="mt-6 inline-flex items-center justify-center rounded-2xl border border-blue-500 bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
-                    >
-                      Download File
-                    </button>
-                  </div>
-                ) : (
-                  <textarea
-                    value={content}
-                    onChange={handleChange}
-                    onPaste={handlePasteEvent}
-                    placeholder="Write or paste text here, or drag & drop a file..."
-                    className="min-h-[400px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner custom-scrollbar"
-                  />
-                )}
-                {isDragActive && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-blue-500/20 text-blue-100 text-sm font-semibold">
-                    Drop file here to upload
-                  </div>
-                )}
-              </div>
-            </section>
-          </main>
-
-          <aside className="space-y-6 flex flex-col h-[600px]">
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl flex flex-col h-full overflow-hidden">
-              <div className="mb-4">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsImageGalleryOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                    >
-                      <FaImages className="h-4 w-4" /> Image Gallery
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsFileGalleryOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                    >
-                      <FaFileAlt className="h-4 w-4" /> File Gallery
-                    </button>
-                  </div>
-                </div>
-
-                {/* Search Input */}
-                <div className="relative group">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search history..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2 pl-10 pr-4 text-sm text-slate-200 outline-none focus:border-blue-500/50 transition"
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                {history.length === 0 && !isLoadingMore ? (
-                  <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center mt-4">
-                    <p className="text-slate-500 text-sm">
-                      {searchQuery
-                        ? "No matching history found."
-                        : "No clipboard history yet."}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-4 mt-2">
-                      {history.map((item, index) => (
-                        <div
-                          key={`${item.id}-${index}`}
-                          className="group relative rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex flex-1 min-w-0 items-center gap-2">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                {new Date(item.createdAt).toLocaleDateString()}{" "}
-                                {new Date(item.createdAt).toLocaleTimeString(
-                                  [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </span>
-                              {item.fileName && (
-                                <span className="truncate max-w-[180px] text-xs text-slate-300">
-                                  {item.fileName}
-                                </span>
-                              )}
-                              {getFileType(item.content) && (
-                                <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                                  {getFileType(item.content)}
-                                </span>
-                              )}
-                              {getFileSize(item.content) && (
-                                <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                                  {getFileSize(item.content)}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-shrink-0 items-center gap-1 pl-3">
-                              <button
-                                onClick={() =>
-                                  handleCopy(item.content, item.id)
-                                }
-                                disabled={copyingIds.includes(item.id)}
-                                className={`rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                                title={
-                                  copyingIds.includes(item.id)
-                                    ? "Copying..."
-                                    : "Copy to clipboard"
-                                }
-                              >
-                                {copyingIds.includes(item.id) ? (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="animate-spin"
-                                  >
-                                    <circle
-                                      cx="12"
-                                      cy="12"
-                                      r="8"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      className="opacity-25"
-                                    />
-                                    <path d="M12 4v4" />
-                                  </svg>
-                                ) : copiedHistoryId === item.id ? (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <rect
-                                      width="14"
-                                      height="14"
-                                      x="8"
-                                      y="8"
-                                      rx="2"
-                                      ry="2"
-                                    />
-                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                                  </svg>
-                                )}
-                              </button>
-                              {isImageContent(item.content) && (
-                                <button
-                                  onClick={() => setHistoryPreviewItem(item)}
-                                  className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-0 transition group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
-                                  title="Preview image"
-                                  aria-label="Preview image"
-                                >
-                                  <FaEye className="h-4 w-4" />
-                                </button>
-                              )}
-                              {(isRemoteFile(item.content) ||
-                                item.content.startsWith("data:")) && (
-                                <button
-                                  onClick={() =>
-                                    downloadContent(
-                                      item.content,
-                                      item.fileName ??
-                                        getFileNameFromUrl(item.content),
-                                      item.id,
-                                    )
-                                  }
-                                  disabled={downloadingIds.includes(item.id)}
-                                  className={`rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-0 transition group-hover:opacity-100 hover:bg-slate-700 hover:text-white ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                                  title={
-                                    downloadingIds.includes(item.id)
-                                      ? "Downloading..."
-                                      : "Download file"
-                                  }
-                                >
-                                  {downloadingIds.includes(item.id) ? (
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      className="animate-spin"
-                                    >
-                                      <circle
-                                        cx="12"
-                                        cy="12"
-                                        r="8"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        className="opacity-25"
-                                      />
-                                      <path d="M12 4v4" />
-                                    </svg>
-                                  ) : (
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    >
-                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                      <polyline points="7 10 12 15 17 10" />
-                                      <path d="M12 15V3" />
-                                    </svg>
-                                  )}
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDelete(item.id)}
-                                disabled={deletingIds.includes(item.id)}
-                                className={`rounded-lg p-2 transition ${deletingIds.includes(item.id) ? "bg-red-600/20 text-red-200 cursor-not-allowed" : "bg-red-600/10 text-red-400 hover:bg-red-600 hover:text-white"} opacity-0 group-hover:opacity-100`}
-                                title="Delete item"
-                              >
-                                {deletingIds.includes(item.id) ? (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <circle
-                                      cx="12"
-                                      cy="12"
-                                      r="8"
-                                      className="animate-spin"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M3 6h18" />
-                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                    <line x1="10" x2="10" y1="11" y2="17" />
-                                    <line x1="14" x2="14" y1="11" y2="17" />
-                                  </svg>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                          {isImageContent(item.content) ? (
-                            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2">
-                              <Image
-                                src={getImageSrc(item.content)}
-                                alt="History image"
-                                width={600}
-                                height={400}
-                                unoptimized
-                                className="max-h-56 w-full rounded-2xl object-contain"
-                              />
-                            </div>
-                          ) : (
-                            <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
-                              {item.content || (
-                                <span className="italic text-slate-600">
-                                  (Empty)
-                                </span>
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                <div ref={loadMoreRef} className="py-4 flex justify-center">
-                  {isLoadingMore && (
-                    <div className="flex items-center gap-2 text-slate-500 text-sm">
-                      <div className="h-4 w-4 border-2 border-slate-700 border-t-blue-500 rounded-full animate-spin" />
-                      <span>Loading...</span>
-                    </div>
-                  )}
-                  {!hasMore && history.length > 0 && (
-                    <p className="text-slate-600 text-[10px] italic uppercase tracking-widest text-center w-full">
-                      End of history
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-          </aside>
+          <HistorySidebar
+            history={history}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onOpenImageGallery={() => setIsImageGalleryOpen(true)}
+            onOpenFileGallery={() => setIsFileGalleryOpen(true)}
+            onCopy={handleCopy}
+            onDelete={handleDelete}
+            onDownload={downloadContent}
+            setHistoryPreviewItem={setHistoryPreviewItem}
+            isLoadingMore={isLoadingMore}
+            hasMore={hasMore}
+            loadMoreRef={loadMoreRef}
+            copiedHistoryId={copiedHistoryId}
+            copyingIds={copyingIds}
+            downloadingIds={downloadingIds}
+            deletingIds={deletingIds}
+            isImageContent={isImageContent}
+            isRemoteFile={isRemoteFile}
+            getImageSrc={getImageSrc}
+            getFileNameFromUrl={getFileNameFromUrl}
+            getFileType={getFileType}
+            getFileSize={getFileSize}
+          />
         </div>
       </div>
 

@@ -78,6 +78,7 @@ model CopyItem {
   id          String     @id @default(cuid())
   content     String     @db.Text
   fileName    String?
+  fileSize    Int?
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId String?

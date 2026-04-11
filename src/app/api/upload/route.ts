@@ -47,12 +47,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const fileName = file.name || "download";
+    const fileSize = file.size;
     const url = await uploadFileToS3(session.user.id, file);
     const prisma = getPrisma();
     const item = await prisma.copyItem.create({
       data: {
         content: url,
         fileName,
+        fileSize,
         userId: session.user.id,
         workspaceId: workspace?.id ?? null,
       },
@@ -62,6 +64,8 @@ export async function POST(req: NextRequest) {
       item: {
         id: item.id,
         content: item.content,
+        fileName: item.fileName,
+        fileSize: item.fileSize,
         createdAt: item.createdAt.toISOString(),
       },
     });
