@@ -342,6 +342,13 @@ export default function DashboardPage() {
   const isAuthenticated = status === "authenticated";
   const ACTIVE_WORKSPACE_STORAGE_KEY = "activeWorkspaceId";
 
+  const clearSelectedWorkspaceId = useCallback(() => {
+    setSelectedWorkspaceId(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+    }
+  }, [ACTIVE_WORKSPACE_STORAGE_KEY]);
+
   useEffect(() => {
     workspaceUsersRef.current = workspaceUsers;
   }, [workspaceUsers]);
@@ -426,9 +433,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
+      clearSelectedWorkspaceId();
       router.push("/login");
     }
-  }, [status, router]);
+  }, [status, router, clearSelectedWorkspaceId]);
 
   useEffect(() => {
     if (content.startsWith("data:")) {
@@ -461,7 +469,7 @@ export default function DashboardPage() {
           (workspace: { id: string }) => workspace.id === selectedWorkspaceId,
         )
       ) {
-        setSelectedWorkspaceId(null);
+        clearSelectedWorkspaceId();
       }
     } catch (error) {
       console.error(error);
@@ -469,7 +477,7 @@ export default function DashboardPage() {
         error instanceof Error ? error.message : "Unable to fetch workspaces.",
       );
     }
-  }, [selectedWorkspaceId]);
+  }, [selectedWorkspaceId, clearSelectedWorkspaceId]);
 
   const loadPendingInvites = useCallback(async () => {
     try {
@@ -626,7 +634,13 @@ export default function DashboardPage() {
         url.searchParams.set("limit", "20");
 
         const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Failed to load copy history.");
+        if (!res.ok) {
+          if (res.status === 404 && selectedWorkspaceId) {
+            clearSelectedWorkspaceId();
+            return;
+          }
+          throw new Error("Failed to load copy history.");
+        }
 
         const data: FetchHistoryResponse = await res.json();
 
@@ -656,7 +670,7 @@ export default function DashboardPage() {
         setIsLoadingMore(false);
       }
     },
-    [selectedWorkspaceId],
+    [selectedWorkspaceId, clearSelectedWorkspaceId],
   );
 
   const loadImageGallery = useCallback(
@@ -688,7 +702,13 @@ export default function DashboardPage() {
         url.searchParams.set("type", "image");
 
         const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Failed to load image gallery.");
+        if (!res.ok) {
+          if (res.status === 404 && selectedWorkspaceId) {
+            clearSelectedWorkspaceId();
+            return;
+          }
+          throw new Error("Failed to load image gallery.");
+        }
 
         const data: FetchHistoryResponse = await res.json();
         if (isInitial) {
@@ -710,7 +730,7 @@ export default function DashboardPage() {
         setIsImageGalleryLoadingMore(false);
       }
     },
-    [imageGallerySearch, selectedWorkspaceId],
+    [imageGallerySearch, selectedWorkspaceId, clearSelectedWorkspaceId],
   );
 
   const loadFileGallery = useCallback(
@@ -742,7 +762,13 @@ export default function DashboardPage() {
         url.searchParams.set("type", "file");
 
         const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Failed to load file gallery.");
+        if (!res.ok) {
+          if (res.status === 404 && selectedWorkspaceId) {
+            clearSelectedWorkspaceId();
+            return;
+          }
+          throw new Error("Failed to load file gallery.");
+        }
 
         const data: FetchHistoryResponse = await res.json();
         if (isInitial) {
@@ -763,7 +789,7 @@ export default function DashboardPage() {
         setIsFileGalleryLoadingMore(false);
       }
     },
-    [fileGallerySearch, selectedWorkspaceId],
+    [fileGallerySearch, selectedWorkspaceId, clearSelectedWorkspaceId],
   );
 
   const loadVideoGallery = useCallback(
@@ -795,7 +821,13 @@ export default function DashboardPage() {
         url.searchParams.set("type", "video");
 
         const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Failed to load video gallery.");
+        if (!res.ok) {
+          if (res.status === 404 && selectedWorkspaceId) {
+            clearSelectedWorkspaceId();
+            return;
+          }
+          throw new Error("Failed to load video gallery.");
+        }
 
         const data: FetchHistoryResponse = await res.json();
         if (isInitial) {
@@ -816,7 +848,7 @@ export default function DashboardPage() {
         setIsVideoGalleryLoadingMore(false);
       }
     },
-    [videoGallerySearch, selectedWorkspaceId],
+    [videoGallerySearch, selectedWorkspaceId, clearSelectedWorkspaceId],
   );
 
   // Initial load or search change
