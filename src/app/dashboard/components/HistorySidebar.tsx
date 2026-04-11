@@ -154,19 +154,6 @@ export default function HistorySidebar({
                             minute: "2-digit",
                           })}
                         </span>
-                        {getFileType(item.content) && (
-                          <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                            {getFileType(item.content)}
-                          </span>
-                        )}
-                        {(item.fileSize != null ||
-                          getFileSize(item.content)) && (
-                          <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                            {item.fileSize != null
-                              ? formatFileSize(item.fileSize)
-                              : getFileSize(item.content)}
-                          </span>
-                        )}
                       </div>
                       <div className="flex flex-shrink-0 items-center gap-1 pl-3">
                         <button
@@ -394,6 +381,25 @@ export default function HistorySidebar({
                           <span className="italic text-slate-600">(Empty)</span>
                         )}
                       </p>
+                    )}
+                    {(getFileType(item.content) ||
+                      item.fileSize != null ||
+                      getFileSize(item.content)) && (
+                      <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                        {getFileType(item.content) && (
+                          <span className="rounded-full bg-slate-800 px-2 py-1">
+                            {getFileType(item.content)}
+                          </span>
+                        )}
+                        {(item.fileSize != null ||
+                          getFileSize(item.content)) && (
+                          <span className="rounded-full bg-slate-800 px-2 py-1">
+                            {item.fileSize != null
+                              ? formatFileSize(item.fileSize)
+                              : getFileSize(item.content)}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}

@@ -1930,6 +1930,7 @@ export default function DashboardPage() {
           onDownload={downloadContent}
           onDelete={handleDelete}
           getFileNameFromUrl={getFileNameFromUrl}
+          getFileType={getFileType}
           getFileSize={getFileSize}
           getImageSrc={getImageSrc}
         />

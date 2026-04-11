@@ -27,6 +27,7 @@ interface ImageGalleryModalProps {
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   getFileNameFromUrl: (url: string) => string;
+  getFileType: (value: string) => string | null;
   getFileSize: (value: string) => string | null;
   getImageSrc: (src: string) => string;
 }
@@ -56,6 +57,7 @@ export default function ImageGalleryModal({
   onDownload,
   onDelete,
   getFileNameFromUrl,
+  getFileType,
   getFileSize,
   getImageSrc,
 }: ImageGalleryModalProps) {
@@ -103,18 +105,24 @@ export default function ImageGalleryModal({
                   key={`${item.id}-${index}`}
                   className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
                 >
-                  <div className="mb-3 flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">
-                        {item.fileName ?? getFileNameFromUrl(item.content)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {item.fileSize != null
-                          ? formatFileSize(item.fileSize)
-                          : (getFileSize(item.content) ?? "Unknown size")}
-                      </p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const fileType = getFileType(item.content);
+                    return (
+                      <div className="mb-3 flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">
+                            {item.fileName ?? getFileNameFromUrl(item.content)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {(fileType || "IMAGE") + " · "}
+                            {item.fileSize != null
+                              ? formatFileSize(item.fileSize)
+                              : (getFileSize(item.content) ?? "Unknown size")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
                     <button
                       type="button"
