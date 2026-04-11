@@ -13,7 +13,10 @@ import {
   type DragEvent,
 } from "react";
 import { io, type Socket } from "socket.io-client";
+import Select, { type SingleValue } from "react-select";
+import { FaEdit, FaHistory } from "react-icons/fa";
 import Image from "next/image";
+import packageJson from "../../../package.json";
 
 interface CopyItem {
   id: string;
@@ -38,12 +41,14 @@ type ClipboardReadItem = {
 };
 
 const MAX_UPLOAD_SIZE = 5 * 1024 ** 3; // 5 GB
+const appVersion = packageJson.version;
 
 const isImageContent = (value: string) =>
   /^data:image\/[a-zA-Z]+;base64,/.test(value) ||
   /^https?:\/\/.+\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value);
 
-const isRemoteFile = (value: string) => /^https?:\/\//i.test(value);
+const isRemoteFile = (value: string) =>
+  /^https?:\/\/.+\.[a-z0-9]+(\?.*)?$/i.test(value);
 
 const getFileNameFromUrl = (url: string) => {
   try {
@@ -149,8 +154,47 @@ export default function DashboardPage() {
   const [workspaceInfo, setWorkspaceInfo] = useState<string | null>(null);
   const [isWorkspaceSaving, setIsWorkspaceSaving] = useState(false);
   const [isInviteSaving, setIsInviteSaving] = useState(false);
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
+  const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
+  const [clearAllConfirmation, setClearAllConfirmation] = useState("");
+  const [isClearingAll, setIsClearingAll] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+  type WorkspaceOption = {
+    value: string;
+    label: string;
+  };
+
+  const activeWorkspaceName = selectedWorkspaceId
+    ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId)?.name
+    : null;
+
+  const workspaceOptions = useMemo<WorkspaceOption[]>(
+    () => [
+      { value: "", label: "Personal clipboard" },
+      ...workspaces.map((workspace) => ({
+        value: workspace.id,
+        label: workspace.name,
+      })),
+    ],
+    [workspaces],
+  );
+
+  const selectedWorkspaceOption = useMemo<WorkspaceOption>(() => {
+    return (
+      workspaceOptions.find(
+        (option) => option.value === (selectedWorkspaceId ?? ""),
+      ) ?? workspaceOptions[0]
+    );
+  }, [workspaceOptions, selectedWorkspaceId]);
+
+  const handleWorkspaceSelect = useCallback(
+    (option: SingleValue<WorkspaceOption>) => {
+      setSelectedWorkspaceId(option?.value ? option.value : null);
+    },
+    [],
+  );
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -995,13 +1039,41 @@ export default function DashboardPage() {
     }
   };
 
-  if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <div className="text-xl font-medium animate-pulse">Loading...</div>
-      </div>
-    );
-  }
+  const handleClearAllPersonalClipboard = async () => {
+    if (clearAllConfirmation !== "clear all") {
+      setError("Please type 'clear all' to confirm.");
+      return;
+    }
+
+    setIsClearingAll(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/copy-items/clear-all", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to clear personal clipboard.");
+      }
+
+      if (!selectedWorkspaceId) {
+        setHistory([]);
+        setContent("");
+        setContentType("text");
+        lastContentRef.current = "";
+      }
+
+      setWorkspaceInfo("Personal clipboard cleared successfully.");
+      setIsClearAllModalOpen(false);
+      setClearAllConfirmation("");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsClearingAll(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
@@ -1027,6 +1099,9 @@ export default function DashboardPage() {
                   real-time. Copy/paste text or images, and drag & drop an image
                   directly into the editor.
                 </p>
+                <div className="text-sm text-slate-500">
+                  App version {appVersion}
+                </div>
               </div>
             </div>
 
@@ -1084,8 +1159,15 @@ export default function DashboardPage() {
                   <div className="border-t border-slate-800" />
                   <button
                     type="button"
+                    onClick={() => setIsClearAllModalOpen(true)}
+                    className="w-full bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    Clear personal clipboard
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="w-full bg-gradient-to-r from-blue-600 to-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:from-blue-700 hover:to-sky-600"
+                    className="mt-2 w-full bg-gradient-to-r from-blue-600 to-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:from-blue-700 hover:to-sky-600"
                   >
                     Logout
                   </button>
@@ -1132,91 +1214,71 @@ export default function DashboardPage() {
                 >
                   Active workspace
                 </label>
-                <select
-                  id="workspace-select"
-                  value={selectedWorkspaceId ?? ""}
-                  onChange={(event) =>
-                    setSelectedWorkspaceId(event.target.value || null)
-                  }
-                  className="ml-2 rounded-xl bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-800 transition focus:ring-blue-500"
-                >
-                  <option value="">Personal clipboard</option>
-                  {workspaces.map((workspace) => (
-                    <option key={workspace.id} value={workspace.id}>
-                      {workspace.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="ml-2 min-w-[220px]">
+                  <Select
+                    options={workspaceOptions}
+                    value={selectedWorkspaceOption}
+                    onChange={handleWorkspaceSelect}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        color: "#fff",
+                        minHeight: "42px",
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: "#fff",
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: "#0f172a",
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isFocused
+                          ? "#1e293b"
+                          : "#0f172a",
+                        color: state.isSelected ? "#fff" : "#cbd5e1",
+                      }),
+                    }}
+                    theme={(theme) => ({
+                      ...theme,
+                      borderRadius: 12,
+                      colors: {
+                        ...theme.colors,
+                        primary25: "#1e293b",
+                        primary: "#3b82f6",
+                        neutral0: "#0f172a",
+                        neutral80: "#e2e8f0",
+                      },
+                    })}
+                  />
+                </div>
               </div>
 
               <button
                 type="button"
-                onClick={handleCreateWorkspace}
-                disabled={isWorkspaceSaving}
-                className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => setIsWorkspaceModalOpen(true)}
+                className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
               >
-                {isWorkspaceSaving ? "Creating..." : "Create Workspace"}
+                Manage workspace
               </button>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-              <label
-                className="block text-sm font-medium text-slate-300"
-                htmlFor="workspace-name"
-              >
-                New workspace name
-              </label>
-              <div className="mt-2 flex gap-2">
-                <input
-                  id="workspace-name"
-                  value={workspaceCreateName}
-                  onChange={(event) =>
-                    setWorkspaceCreateName(event.target.value)
-                  }
-                  className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="Team clipboard"
-                />
-                <button
-                  type="button"
-                  onClick={handleCreateWorkspace}
-                  disabled={isWorkspaceSaving}
-                  className="rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-              <label
-                className="block text-sm font-medium text-slate-300"
-                htmlFor="invite-email"
-              >
-                Invite teammate by email
-              </label>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <input
-                  id="invite-email"
-                  type="email"
-                  value={workspaceInviteEmail}
-                  onChange={(event) =>
-                    setWorkspaceInviteEmail(event.target.value)
-                  }
-                  className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="name@example.com"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendInvite}
-                  disabled={isInviteSaving || !selectedWorkspaceId}
-                  className="rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isInviteSaving ? "Sending..." : "Send Invite"}
-                </button>
-              </div>
-            </div>
+          <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+            <p className="text-sm text-slate-300">
+              Create new workspaces and invite teammates from the workspace
+              modal.
+            </p>
+            <p className="mt-3 text-sm text-slate-400">
+              Select an active workspace first, then open the workspace modal to
+              manage creation and invites.
+            </p>
           </div>
 
           {workspaceInfo && (
@@ -1266,6 +1328,224 @@ export default function DashboardPage() {
           )}
         </section>
 
+        {isWorkspaceModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+            <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Workspace Manager
+                  </h2>
+                  <p className="text-sm text-slate-400">
+                    Create a workspace or invite teammates to the selected
+                    workspace.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Active workspace:{" "}
+                    <span className="font-semibold text-white">
+                      {activeWorkspaceName ?? "Personal clipboard"}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsWorkspaceModalOpen(false)}
+                  className="rounded-full border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-6 p-6">
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <label
+                    className="block text-sm font-medium text-slate-300"
+                    htmlFor="workspace-name-modal"
+                  >
+                    New workspace name
+                  </label>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      id="workspace-name-modal"
+                      value={workspaceCreateName}
+                      onChange={(event) =>
+                        setWorkspaceCreateName(event.target.value)
+                      }
+                      className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      placeholder="Team clipboard"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateWorkspace}
+                      disabled={isWorkspaceSaving}
+                      className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isWorkspaceSaving ? "Creating..." : "Create Workspace"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <label
+                    className="block text-sm font-medium text-slate-300"
+                    htmlFor="workspace-select-modal"
+                  >
+                    Select workspace for invites
+                  </label>
+                  <div className="mt-3">
+                    <Select
+                      options={workspaceOptions}
+                      value={selectedWorkspaceOption}
+                      onChange={handleWorkspaceSelect}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          backgroundColor: "#0f172a",
+                          borderColor: "#334155",
+                          color: "#fff",
+                          minHeight: "42px",
+                        }),
+                        singleValue: (base) => ({
+                          ...base,
+                          color: "#fff",
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          backgroundColor: "#0f172a",
+                        }),
+                        option: (base, state) => ({
+                          ...base,
+                          backgroundColor: state.isFocused
+                            ? "#1e293b"
+                            : "#0f172a",
+                          color: state.isSelected ? "#fff" : "#cbd5e1",
+                        }),
+                      }}
+                      theme={(theme) => ({
+                        ...theme,
+                        borderRadius: 12,
+                        colors: {
+                          ...theme.colors,
+                          primary25: "#1e293b",
+                          primary: "#3b82f6",
+                          neutral0: "#0f172a",
+                          neutral80: "#e2e8f0",
+                        },
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <label
+                    className="block text-sm font-medium text-slate-300"
+                    htmlFor="invite-email-modal"
+                  >
+                    Invite teammate by email
+                  </label>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      id="invite-email-modal"
+                      type="email"
+                      value={workspaceInviteEmail}
+                      onChange={(event) =>
+                        setWorkspaceInviteEmail(event.target.value)
+                      }
+                      className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      placeholder="name@example.com"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendInvite}
+                      disabled={isInviteSaving || !selectedWorkspaceId}
+                      className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isInviteSaving ? "Sending..." : "Send Invite"}
+                    </button>
+                  </div>
+                  {!selectedWorkspaceId && (
+                    <p className="mt-2 text-sm text-slate-500">
+                      Select an active workspace before inviting teammates.
+                    </p>
+                  )}
+                </div>
+
+                {workspaceInfo && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
+                    {workspaceInfo}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isClearAllModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+            <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Clear personal clipboard
+                  </h2>
+                  <p className="text-sm text-slate-400">
+                    This will permanently delete all items from your personal
+                    clipboard.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Workspace items are not affected.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsClearAllModalOpen(false);
+                    setClearAllConfirmation("");
+                  }}
+                  className="rounded-full border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-6 p-6">
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <p className="text-sm text-slate-300">
+                    Type{" "}
+                    <span className="font-semibold text-white">clear all</span>{" "}
+                    to confirm.
+                  </p>
+                  <input
+                    type="text"
+                    value={clearAllConfirmation}
+                    onChange={(event) =>
+                      setClearAllConfirmation(event.target.value)
+                    }
+                    className="mt-3 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="Type clear all to confirm"
+                  />
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm text-slate-400">
+                    Once confirmed, your personal clipboard data will be deleted
+                    immediately.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearAllPersonalClipboard}
+                    disabled={
+                      clearAllConfirmation !== "clear all" || isClearingAll
+                    }
+                    className="rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isClearingAll ? "Clearing..." : "Confirm Clear All"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-3">
             <span className="flex-shrink-0 text-red-400">⚠️</span>
@@ -1278,7 +1558,7 @@ export default function DashboardPage() {
             <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <span>📝</span> Live Editor
+                  <FaEdit className="h-5 w-5 text-blue-400" /> Live Editor
                 </h2>
                 <div className="flex items-center gap-3">
                   <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800 mr-2">
@@ -1498,7 +1778,7 @@ export default function DashboardPage() {
             <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl flex flex-col h-full overflow-hidden">
               <div className="mb-4">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                  <span>🕒</span> History
+                  <FaHistory className="h-5 w-5 text-sky-400" /> History
                 </h2>
 
                 {/* Search Input */}
