@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import * as cookie from "cookie";
 import { getToken } from "next-auth/jwt";
 import { getPrisma } from "./src/lib/prisma";
+import { isImageDataUrl, uploadBase64ImageToS3, useS3 } from "./src/lib/s3";
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT ?? 3000);
@@ -126,9 +127,14 @@ io.on("connection", (socket) => {
           return callback({ item: result });
         }
 
+        const contentToStore =
+          useS3 && isImageDataUrl(payload.content)
+            ? await uploadBase64ImageToS3(userId, payload.content)
+            : payload.content;
+
         const item = await getPrisma().copyItem.create({
           data: {
-            content: payload.content,
+            content: contentToStore,
             userId,
           },
         });

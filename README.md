@@ -20,8 +20,10 @@
 - **Real-time Sync**: Instant synchronization across all connected devices using Socket.io.
 - **Private & Secure**: Built-in authentication with NextAuth.js. Each user has their own private clipboard history.
 - **Live Editor**: A simple, intuitive interface to write or paste text.
-- **Image Support**: Paste images directly or drag & drop images into the dashboard for instant clipboard syncing.
-- **Drag & Drop**: Easily drag files or images into the editor area to add them to your clipboard history.
+- **Image & File Support**: Paste images directly or drag & drop files into the dashboard for instant clipboard syncing.
+- **S3-compatible Storage**: Optional file upload support for AWS S3 or S3-compatible endpoints, with backward compatibility for existing database image items.
+- **Downloadable Items**: Download uploaded files directly from the dashboard.
+- **File Metadata**: File-type and file-size badges appear for uploaded files.
 - **History Tracking**: Keep track of your previous clipboard items.
 - **One-Click Actions**: "Copy All" and "Paste & Replace" buttons with visual feedback animations.
 - **Modern UI**: Clean, responsive dark-themed dashboard built with Tailwind CSS.
@@ -65,6 +67,14 @@
    NEXTAUTH_SECRET="your-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
    NEXT_PUBLIC_SOCKET_URL="http://localhost:3000"
+
+   # Optional S3 settings for file uploads
+   S3_BUCKET_NAME=your-bucket-name
+   S3_REGION=us-east-1
+   S3_ACCESS_KEY=your-access-key
+   S3_SECRET_KEY=your-secret-key
+   # If set, use a custom S3-compatible endpoint
+   S3_ENDPOINT_URL=https://your-s3-endpoint.com
    ```
 
 4. **Database Migration**
@@ -83,6 +93,7 @@
 ## 📦 Scripts
 
 - `npm run dev`: Starts the custom Next.js server with Socket.io support.
+- `pnpm` is used throughout this repository, but `npm` commands also work when applicable.
 - `npm run build`: Builds the application for production.
 - `npm run start`: Starts the production server.
 - `npm run lint`: Runs ESLint for code quality checks.

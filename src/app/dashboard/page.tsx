@@ -36,8 +36,86 @@ type ClipboardReadItem = {
   getType(type: string): Promise<Blob>;
 };
 
+const MAX_UPLOAD_SIZE = 5 * 1024 ** 3; // 5 GB
+
 const isImageContent = (value: string) =>
-  /^data:image\/[a-zA-Z]+;base64,/.test(value);
+  /^data:image\/[a-zA-Z]+;base64,/.test(value) ||
+  /^https?:\/\/.+\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value);
+
+const isRemoteFile = (value: string) => /^https?:\/\//i.test(value);
+
+const getFileNameFromUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const fileName = parsed.pathname.split("/").pop();
+    return fileName || "download";
+  } catch {
+    return "download";
+  }
+};
+
+const getDataUrlFileName = (dataUrl: string) => {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z]+);base64,/);
+  if (!match) return "download";
+  const mime = match[1];
+  const extension = mime.split("/")[1] === "jpeg" ? "jpg" : mime.split("/")[1];
+  return `image.${extension}`;
+};
+
+const getFileType = (value: string) => {
+  if (value.startsWith("data:")) {
+    const match = value.match(/^data:([^;]+);base64,/);
+    if (!match) return "FILE";
+    const mime = match[1];
+    const extension =
+      mime.split("/")[1] === "jpeg" ? "jpg" : mime.split("/")[1];
+    return extension.toUpperCase();
+  }
+
+  if (isRemoteFile(value)) {
+    try {
+      const parsed = new URL(value);
+      const fileName = parsed.pathname.split("/").pop();
+      const extension = fileName?.split(".").pop();
+      return extension ? extension.toUpperCase() : "FILE";
+    } catch {
+      return "FILE";
+    }
+  }
+
+  return null;
+};
+
+const getDataUrlSize = (dataUrl: string) => {
+  const base64 = dataUrl.split(",")[1] || "";
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.round((base64.length * 3) / 4 - padding));
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+};
+
+const getFileSize = (value: string) => {
+  if (value.startsWith("data:")) {
+    return formatFileSize(getDataUrlSize(value));
+  }
+  return null;
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -54,6 +132,10 @@ export default function DashboardPage() {
   const [copiedHistoryId, setCopiedHistoryId] = useState<string | null>(null);
   const [pasted, setPasted] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentFileName, setCurrentFileName] = useState<string | null>(null);
+  const [currentFileSize, setCurrentFileSize] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
@@ -104,6 +186,38 @@ export default function DashboardPage() {
       router.push("/login");
     }
   }, [status, router]);
+
+  useEffect(() => {
+    if (content.startsWith("data:")) {
+      setCurrentFileSize(formatFileSize(getDataUrlSize(content)));
+      return;
+    }
+
+    if (isRemoteFile(content)) {
+      const controller = new AbortController();
+      const fetchSize = async () => {
+        try {
+          const response = await fetch(content, {
+            method: "HEAD",
+            signal: controller.signal,
+          });
+          const length = response.headers.get("content-length");
+          if (length) {
+            setCurrentFileSize(formatFileSize(parseInt(length, 10)));
+            return;
+          }
+        } catch {
+          // ignore HEAD failures
+        }
+        setCurrentFileSize(null);
+      };
+
+      fetchSize();
+      return () => controller.abort();
+    }
+
+    setCurrentFileSize(null);
+  }, [content]);
 
   // Debounce search input
   useEffect(() => {
@@ -318,6 +432,108 @@ export default function DashboardPage() {
       reader.readAsDataURL(blob);
     });
 
+  const downloadContent = async (value: string) => {
+    try {
+      if (value.startsWith("data:")) {
+        const [meta, base64] = value.split(",");
+        const byteString = atob(base64);
+        const buffer = new Uint8Array(byteString.length);
+        for (let i = 0; i < byteString.length; i += 1) {
+          buffer[i] = byteString.charCodeAt(i);
+        }
+        const mime = meta.split(":")[1].split(";")[0];
+        downloadBlob(
+          new Blob([buffer], { type: mime }),
+          getDataUrlFileName(value),
+        );
+        return;
+      }
+
+      const response = await fetch(value);
+      if (!response.ok) {
+        throw new Error("Failed to download file.");
+      }
+      const blob = await response.blob();
+      downloadBlob(blob, getFileNameFromUrl(value));
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to download file. Please try again.",
+      );
+    }
+  };
+
+  const uploadFileToServer = (file: File) =>
+    new Promise<CopyItem>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append("file", file);
+
+      xhr.open("POST", "/api/upload");
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (data.item) {
+              resolve(data.item);
+            } else {
+              reject(new Error(data.error || "Upload failed."));
+            }
+          } catch {
+            reject(new Error("Invalid upload response."));
+          }
+        } else {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            reject(new Error(data.error || `Upload failed: ${xhr.status}`));
+          } catch {
+            reject(new Error(`Upload failed: ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload failed. Please try again."));
+      xhr.onabort = () => reject(new Error("Upload aborted."));
+      xhr.send(formData);
+    });
+
+  const uploadFile = async (file: File) => {
+    if (file.size > MAX_UPLOAD_SIZE) {
+      setError("File exceeds the 5GB upload limit.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsUploading(true);
+      setUploadProgress(0);
+      setCurrentFileName(file.name);
+      setCurrentFileSize(formatFileSize(file.size));
+
+      const item = await uploadFileToServer(file);
+      setHistory((prev) => [item, ...prev]);
+      setContent(item.content);
+      setContentType(isImageContent(item.content) ? "image" : "text");
+      setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to upload file. Please try again.",
+      );
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadProgress(0), 500);
+    }
+  };
+
   const copyTextFallback = (text: string) => {
     const textarea = document.createElement("textarea");
     textarea.value = text;
@@ -381,7 +597,14 @@ export default function DashboardPage() {
   const handleCopy = async (text: string, id?: string) => {
     try {
       if (isImageContent(text)) {
-        await copyImageToClipboard(text);
+        if (text.startsWith("http")) {
+          const response = await fetch(text);
+          const blob = await response.blob();
+          const dataUrl = await blobToDataURL(blob);
+          await copyImageToClipboard(dataUrl);
+        } else {
+          await copyImageToClipboard(text);
+        }
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
       } else {
@@ -420,6 +643,7 @@ export default function DashboardPage() {
       const dataUrl = reader.result as string;
       setContent(dataUrl);
       setContentType("image");
+      setCurrentFileSize(formatFileSize(getDataUrlSize(dataUrl)));
       debouncedUpdate(dataUrl);
       setError(null);
       setPasted(true);
@@ -442,21 +666,11 @@ export default function DashboardPage() {
     event.preventDefault();
     setIsDragActive(false);
 
-    const items = Array.from(event.dataTransfer.items || []);
-    for (const item of items) {
-      if (item.kind === "file" && item.type.startsWith("image/")) {
-        const file = item.getAsFile();
-        if (!file) continue;
-
-        const dataUrl = await blobToDataURL(file);
-        setContent(dataUrl);
-        setContentType("image");
-        debouncedUpdate(dataUrl);
-        setError(null);
-        setPasted(true);
-        setTimeout(() => setPasted(false), 2000);
-        return;
-      }
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length > 0) {
+      const file = files[0];
+      await uploadFile(file);
+      return;
     }
 
     const text = event.dataTransfer.getData("text/plain").trim();
@@ -802,6 +1016,19 @@ export default function DashboardPage() {
                       Saving...
                     </span>
                   )}
+                  {isUploading && (
+                    <div className="ml-4 flex min-w-[180px] flex-col gap-2">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                        <div
+                          className="h-full bg-blue-500 transition-all"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                        Uploading {uploadProgress}%
+                      </span>
+                    </div>
+                  )}
                   <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20">
                     Auto-save
                   </span>
@@ -825,22 +1052,52 @@ export default function DashboardPage() {
                       className="max-h-[340px] w-full rounded-2xl object-contain"
                     />
                     <p className="mt-4 text-sm text-slate-400">
-                      Gambar terdeteksi. Gunakan tombol Paste untuk mengganti
-                      gambar atau Clear untuk mengosongkan.
+                      Image detected. Use the Paste button to replace the image
+                      or Clear to reset.
                     </p>
+                  </div>
+                ) : isRemoteFile(content) ? (
+                  <div className="flex min-h-[400px] w-full flex-col justify-center rounded-2xl border border-slate-800 bg-slate-950 p-8 text-center text-slate-300">
+                    <div className="mb-4 text-sm text-slate-400">
+                      File uploaded successfully.
+                    </div>
+                    <div className="mb-3 flex items-center justify-center gap-2">
+                      <p className="font-semibold text-white">
+                        {currentFileName || getFileNameFromUrl(content)}
+                      </p>
+                      {getFileType(content) && (
+                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                          {getFileType(content)}
+                        </span>
+                      )}
+                      {currentFileSize && (
+                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                          {currentFileSize}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {getFileNameFromUrl(content)}
+                    </p>
+                    <button
+                      onClick={() => downloadContent(content)}
+                      className="mt-6 inline-flex items-center justify-center rounded-2xl border border-blue-500 bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                    >
+                      Download File
+                    </button>
                   </div>
                 ) : (
                   <textarea
                     value={content}
                     onChange={handleChange}
                     onPaste={handlePasteEvent}
-                    placeholder="Write or paste text here, or drag & drop an image..."
+                    placeholder="Write or paste text here, or drag & drop a file..."
                     className="min-h-[400px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner"
                   />
                 )}
                 {isDragActive && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-blue-500/20 text-blue-100 text-sm font-semibold">
-                    Drop image here to paste
+                    Drop file here to upload
                   </div>
                 )}
               </div>
@@ -900,13 +1157,28 @@ export default function DashboardPage() {
                           className="group relative rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
                         >
                           <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              {new Date(item.createdAt).toLocaleDateString()}{" "}
-                              {new Date(item.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                {new Date(item.createdAt).toLocaleDateString()}{" "}
+                                {new Date(item.createdAt).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                              {getFileType(item.content) && (
+                                <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                                  {getFileType(item.content)}
+                                </span>
+                              )}
+                              {getFileSize(item.content) && (
+                                <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                                  {getFileSize(item.content)}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() =>
@@ -953,6 +1225,30 @@ export default function DashboardPage() {
                                   </svg>
                                 )}
                               </button>
+                              {(isRemoteFile(item.content) ||
+                                item.content.startsWith("data:")) && (
+                                <button
+                                  onClick={() => downloadContent(item.content)}
+                                  className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-0 transition group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
+                                  title="Download file"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <path d="M12 15V3" />
+                                  </svg>
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleDelete(item.id)}
                                 disabled={deletingIds.includes(item.id)}

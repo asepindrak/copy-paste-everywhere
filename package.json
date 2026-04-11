@@ -1,7 +1,7 @@
 {
   "name": "copy-paste-everywhere",
   "version": "0.1.6",
-  "description": "Private real-time clipboard sync across all devices — text, images, and drag & drop.",
+  "description": "Private real-time clipboard sync across all devices — text, images, files, and drag & drop.",
   "keywords": [
     "clipboard",
     "sync",
@@ -9,7 +9,12 @@
     "nextjs",
     "socket.io",
     "drag-and-drop",
-    "image paste"
+    "file paste",
+    "image paste",
+    "download",
+    "upload",
+    "cross-platform",
+    "open-source"
   ],
   "author": "asepindrak",
   "repository": {
@@ -38,6 +43,7 @@
     "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.3",
     "next": "16.2.3",
+    "@aws-sdk/client-s3": "^3.482.0",
     "next-auth": "^4.24.13",
     "pg": "^8.20.0",
     "pg-connection-string": "^2.12.0",
