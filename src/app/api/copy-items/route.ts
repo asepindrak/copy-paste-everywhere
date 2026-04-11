@@ -4,6 +4,20 @@ import { authOptions } from "@/lib/authOptions";
 import { getPrisma } from "@/lib/prisma";
 import { getWorkspaceByIdIfMember } from "@/lib/workspace";
 
+const isImageDataUrl = (value: string) =>
+  /^data:image\/[a-zA-Z]+;base64,/.test(value);
+
+const isRemoteImageUrl = (value: string) =>
+  /^https?:\/\/.+\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value);
+
+const isImageContent = (value: string) =>
+  isImageDataUrl(value) || isRemoteImageUrl(value);
+
+const isRemoteFileUrl = (value: string) => /^https?:\/\//i.test(value);
+
+const isFileContent = (value: string) =>
+  !isImageContent(value) && isRemoteFileUrl(value);
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
 
@@ -34,6 +48,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const itemType = searchParams.get("type");
+
+    const itemMatchesType = (item: { content: string }) => {
+      if (itemType === "image") return isImageContent(item.content);
+      if (itemType === "file") return isFileContent(item.content);
+      return true;
+    };
+
     if (search) {
       const allItems = cursor
         ? await prisma.copyItem.findMany({
@@ -53,7 +75,9 @@ export async function GET(req: NextRequest) {
       const searchLower = search.toLowerCase();
 
       for (const item of allItems) {
-        const isDataImage = /^data:image\/[a-zA-Z]+;base64,/.test(item.content);
+        if (!itemMatchesType(item)) continue;
+
+        const isDataImage = isImageDataUrl(item.content);
         const contentMatches =
           !isDataImage && item.content.toLowerCase().includes(searchLower);
         const fileNameMatches = item.fileName
@@ -79,21 +103,30 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const fetchLimit = limit * 10 + 1;
     const copyItems = await prisma.copyItem.findMany({
       where: baseWhere,
       orderBy: { createdAt: "desc" },
-      take: limit + 1,
+      take: fetchLimit,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
-    let nextCursor: string | null = null;
-    if (copyItems.length > limit) {
-      const nextItem = copyItems.pop();
-      nextCursor = nextItem!.id;
+    const filteredItems = [];
+    for (const item of copyItems) {
+      if (!itemMatchesType(item)) continue;
+      filteredItems.push(item);
+      if (filteredItems.length === limit) {
+        break;
+      }
     }
 
+    const nextCursor =
+      copyItems.length === fetchLimit
+        ? copyItems[copyItems.length - 1]!.id
+        : null;
+
     return NextResponse.json({
-      items: copyItems,
+      items: filteredItems,
       nextCursor,
     });
   } catch (error) {
