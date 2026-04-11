@@ -274,6 +274,7 @@ export default function LiveEditor({
               value={content}
               onChange={onChange}
               onPaste={onPasteEvent}
+              id="live-editor-textarea"
               placeholder="Write or paste text here, or drag & drop a file..."
               className="min-h-[400px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner custom-scrollbar"
             />

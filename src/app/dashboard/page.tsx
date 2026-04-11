@@ -1596,14 +1596,113 @@ export default function DashboardPage() {
     }
   };
 
+  const pasteUsingHiddenTextarea = async (): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      const textarea = document.createElement("textarea");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      textarea.setAttribute("aria-hidden", "true");
+      document.body.appendChild(textarea);
+
+      let handled = false;
+
+      const cleanup = () => {
+        textarea.removeEventListener("paste", onPaste);
+        document.body.removeChild(textarea);
+      };
+
+      const onPaste = async (event: Event) => {
+        const clipboardEvent = event as globalThis.ClipboardEvent;
+        handled = true;
+        clipboardEvent.preventDefault();
+        cleanup();
+        await handlePasteEvent(
+          clipboardEvent as unknown as ClipboardEvent<HTMLTextAreaElement>,
+        );
+        resolve(true);
+      };
+
+      textarea.addEventListener("paste", onPaste);
+      textarea.focus();
+      document.execCommand("paste");
+
+      setTimeout(() => {
+        if (!handled) {
+          cleanup();
+          resolve(false);
+        }
+      }, 150);
+    });
+  };
+
+  const pasteIntoEditor = async (): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      const textarea = document.getElementById(
+        "live-editor-textarea",
+      ) as HTMLTextAreaElement | null;
+      if (!textarea) return resolve(false);
+
+      let handled = false;
+
+      const onPasteLocal = async (event: Event) => {
+        const clipboardEvent = event as globalThis.ClipboardEvent;
+        const items = Array.from(clipboardEvent.clipboardData?.items || []);
+        const imageItem = items.find((item) => item.type.startsWith("image/"));
+        const videoItem = items.find((item) => item.type.startsWith("video/"));
+        const fileItem = items.find((item) => item.kind === "file");
+
+        if (!imageItem && !videoItem && !fileItem) {
+          return;
+        }
+
+        handled = true;
+        clipboardEvent.preventDefault();
+        clipboardEvent.stopImmediatePropagation();
+        textarea.removeEventListener("paste", onPasteLocal as any);
+
+        await handlePasteEvent(
+          clipboardEvent as unknown as ClipboardEvent<HTMLTextAreaElement>,
+        );
+        resolve(true);
+      };
+
+      textarea.addEventListener("paste", onPasteLocal as any);
+      textarea.focus();
+      try {
+        document.execCommand("paste");
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        if (!handled) {
+          textarea.removeEventListener("paste", onPasteLocal as any);
+          resolve(false);
+        }
+      }, 200);
+    });
+  };
+
   const handlePaste = async () => {
     try {
+      let pasted = false;
+
+      // Try to paste directly into the visible editor textarea (mimic Ctrl+V)
+      const editorPasteSuccess = await pasteIntoEditor();
+      if (editorPasteSuccess) {
+        return;
+      }
+
       if (navigator.clipboard && "read" in navigator.clipboard) {
         const clipboardItems = await (
           navigator.clipboard as unknown as {
             read(): Promise<ClipboardReadItem[]>;
           }
         ).read();
+
         for (const item of clipboardItems) {
           const imageType = item.types.find((type: string) =>
             type.startsWith("image/"),
@@ -1652,6 +1751,13 @@ export default function DashboardPage() {
             setTimeout(() => setPasted(false), 2000);
             return;
           }
+        }
+      }
+
+      if (!pasted) {
+        const success = await pasteUsingHiddenTextarea();
+        if (success) {
+          return;
         }
       }
 
