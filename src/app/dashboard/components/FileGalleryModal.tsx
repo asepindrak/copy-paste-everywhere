@@ -95,143 +95,163 @@ export default function FileGalleryModal({
             </div>
           ) : (
             <div className="space-y-4">
-              {items.map((item, index) => (
-                <div
-                  key={`${item.id}-${index}`}
-                  className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
-                >
-                  <div className="mb-3 flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">
-                        {item.fileName ?? getFileNameFromUrl(item.content)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {getFileType(item.content) ?? "FILE"} ·{" "}
-                        {item.fileSize != null
-                          ? formatFileSize(item.fileSize)
-                          : (getFileSize(item.content) ?? "Unknown size")}
-                      </p>
+              {items.map((item, index) => {
+                const fileType = getFileType(item.content);
+                const isVideoFile =
+                  !!fileType &&
+                  ["MP4", "WEBM", "OGG", "MOV", "AVI", "MKV", "M4V"].includes(
+                    fileType,
+                  );
+
+                return (
+                  <div
+                    key={`${item.id}-${index}`}
+                    className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
+                  >
+                    <div className="mb-3 flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-semibold text-white">
+                          {item.fileName ?? getFileNameFromUrl(item.content)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {fileType ?? "FILE"} ·{" "}
+                          {item.fileSize != null
+                            ? formatFileSize(item.fileSize)
+                            : (getFileSize(item.content) ?? "Unknown size")}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item.id)}
+                        disabled={deletingIds.includes(item.id)}
+                        className={`shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-300 transition hover:bg-red-600/10 hover:text-white ${deletingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                        title={
+                          deletingIds.includes(item.id)
+                            ? "Deleting..."
+                            : "Delete file"
+                        }
+                        aria-label="Delete file"
+                      >
+                        {deletingIds.includes(item.id) ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="animate-spin"
+                          >
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="8"
+                              className="opacity-25"
+                            />
+                            <path d="M12 4v4" />
+                          </svg>
+                        ) : (
+                          <FaTrash className="h-4 w-4 text-red-500" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(item.id)}
-                      disabled={deletingIds.includes(item.id)}
-                      className={`shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-300 transition hover:bg-red-600/10 hover:text-white ${deletingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                      title={
-                        deletingIds.includes(item.id)
-                          ? "Deleting..."
-                          : "Delete file"
-                      }
-                      aria-label="Delete file"
-                    >
-                      {deletingIds.includes(item.id) ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="animate-spin"
-                        >
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="8"
-                            className="opacity-25"
-                          />
-                          <path d="M12 4v4" />
-                        </svg>
-                      ) : (
-                        <FaTrash className="h-4 w-4 text-red-500" />
-                      )}
-                    </button>
+                    {isVideoFile && (
+                      <div className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-black">
+                        <video
+                          controls
+                          className="h-48 w-full object-contain bg-black"
+                          src={item.content}
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onCopy(item.content, item.id)}
+                        disabled={copyingIds.includes(item.id)}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-500 ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                        title={
+                          copyingIds.includes(item.id)
+                            ? "Copying..."
+                            : "Copy URL"
+                        }
+                        aria-label="Copy URL"
+                      >
+                        {copyingIds.includes(item.id) ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="animate-spin"
+                          >
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="8"
+                              className="opacity-25"
+                            />
+                            <path d="M12 4v4" />
+                          </svg>
+                        ) : (
+                          <FaCopy className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onDownload(
+                            item.content,
+                            item.fileName ?? getFileNameFromUrl(item.content),
+                            item.id,
+                          )
+                        }
+                        disabled={downloadingIds.includes(item.id)}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-200 transition hover:bg-slate-900 ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                        title={
+                          downloadingIds.includes(item.id)
+                            ? "Downloading..."
+                            : "Download file"
+                        }
+                        aria-label="Download file"
+                      >
+                        {downloadingIds.includes(item.id) ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="animate-spin"
+                          >
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="8"
+                              className="opacity-25"
+                            />
+                            <path d="M12 4v4" />
+                          </svg>
+                        ) : (
+                          <FaDownload className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onCopy(item.content, item.id)}
-                      disabled={copyingIds.includes(item.id)}
-                      className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-500 ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                      title={
-                        copyingIds.includes(item.id) ? "Copying..." : "Copy URL"
-                      }
-                      aria-label="Copy URL"
-                    >
-                      {copyingIds.includes(item.id) ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="animate-spin"
-                        >
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="8"
-                            className="opacity-25"
-                          />
-                          <path d="M12 4v4" />
-                        </svg>
-                      ) : (
-                        <FaCopy className="h-4 w-4" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onDownload(
-                          item.content,
-                          item.fileName ?? getFileNameFromUrl(item.content),
-                          item.id,
-                        )
-                      }
-                      disabled={downloadingIds.includes(item.id)}
-                      className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-200 transition hover:bg-slate-900 ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
-                      title={
-                        downloadingIds.includes(item.id)
-                          ? "Downloading..."
-                          : "Download file"
-                      }
-                      aria-label="Download file"
-                    >
-                      {downloadingIds.includes(item.id) ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="animate-spin"
-                        >
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="8"
-                            className="opacity-25"
-                          />
-                          <path d="M12 4v4" />
-                        </svg>
-                      ) : (
-                        <FaDownload className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

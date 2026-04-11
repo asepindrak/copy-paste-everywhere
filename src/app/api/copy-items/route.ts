@@ -13,10 +13,19 @@ const isRemoteImageUrl = (value: string) =>
 const isImageContent = (value: string) =>
   isImageDataUrl(value) || isRemoteImageUrl(value);
 
+const isVideoDataUrl = (value: string) =>
+  /^data:video\/[a-zA-Z]+;base64,/.test(value);
+
+const isRemoteVideoUrl = (value: string) =>
+  /^https?:\/\/.+\.(mp4|webm|ogg|mov|avi|mkv|m4v)(\?.*)?$/i.test(value);
+
+const isVideoContent = (value: string) =>
+  isVideoDataUrl(value) || isRemoteVideoUrl(value);
+
 const isRemoteFileUrl = (value: string) => /^https?:\/\//i.test(value);
 
 const isFileContent = (value: string) =>
-  !isImageContent(value) && isRemoteFileUrl(value);
+  !isImageContent(value) && !isVideoContent(value) && isRemoteFileUrl(value);
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -52,6 +61,7 @@ export async function GET(req: NextRequest) {
 
     const itemMatchesType = (item: { content: string }) => {
       if (itemType === "image") return isImageContent(item.content);
+      if (itemType === "video") return isVideoContent(item.content);
       if (itemType === "file") return isFileContent(item.content);
       return true;
     };

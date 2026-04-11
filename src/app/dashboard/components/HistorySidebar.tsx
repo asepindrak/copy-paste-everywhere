@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FaImages, FaFileAlt, FaEye } from "react-icons/fa";
+import { FaImages, FaFileAlt, FaVideo, FaEye } from "react-icons/fa";
 import type { RefObject } from "react";
 import type { CopyItem } from "../../../types/dashboard";
 
@@ -11,6 +11,7 @@ interface HistorySidebarProps {
   onSearchQueryChange: (value: string) => void;
   onOpenImageGallery: () => void;
   onOpenFileGallery: () => void;
+  onOpenVideoGallery: () => void;
   onCopy: (content: string, id?: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onDownload: (
@@ -27,6 +28,7 @@ interface HistorySidebarProps {
   downloadingIds: string[];
   deletingIds: string[];
   isImageContent: (value: string) => boolean;
+  isVideoContent: (value: string) => boolean;
   isRemoteFile: (value: string) => boolean;
   getImageSrc: (src: string) => string;
   getFileNameFromUrl: (url: string) => string;
@@ -40,6 +42,7 @@ export default function HistorySidebar({
   onSearchQueryChange,
   onOpenImageGallery,
   onOpenFileGallery,
+  onOpenVideoGallery,
   onCopy,
   onDelete,
   onDownload,
@@ -52,6 +55,7 @@ export default function HistorySidebar({
   downloadingIds,
   deletingIds,
   isImageContent,
+  isVideoContent,
   isRemoteFile,
   getImageSrc,
   getFileNameFromUrl,
@@ -73,16 +77,26 @@ export default function HistorySidebar({
               <button
                 type="button"
                 onClick={onOpenImageGallery}
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800 text-white transition hover:bg-slate-700"
+                aria-label="Open image gallery"
               >
-                <FaImages className="h-4 w-4" /> Image Gallery
+                <FaImages className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={onOpenFileGallery}
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800 text-white transition hover:bg-slate-700"
+                aria-label="Open file gallery"
               >
-                <FaFileAlt className="h-4 w-4" /> File Gallery
+                <FaFileAlt className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onOpenVideoGallery}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800 text-white transition hover:bg-slate-700"
+                aria-label="Open video gallery"
+              >
+                <FaVideo className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -226,12 +240,21 @@ export default function HistorySidebar({
                             </svg>
                           )}
                         </button>
-                        {isImageContent(item.content) && (
+                        {(isImageContent(item.content) ||
+                          isVideoContent(item.content)) && (
                           <button
                             onClick={() => setHistoryPreviewItem(item)}
                             className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-0 transition group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
-                            title="Preview image"
-                            aria-label="Preview image"
+                            title={
+                              isVideoContent(item.content)
+                                ? "Preview video"
+                                : "Preview image"
+                            }
+                            aria-label={
+                              isVideoContent(item.content)
+                                ? "Preview video"
+                                : "Preview image"
+                            }
                           >
                             <FaEye className="h-4 w-4" />
                           </button>

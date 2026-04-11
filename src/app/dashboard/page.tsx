@@ -35,6 +35,7 @@ import WorkspaceModal from "./components/WorkspaceModal";
 import ClearAllModal from "./components/ClearAllModal";
 import ImageGalleryModal from "./components/ImageGalleryModal";
 import FileGalleryModal from "./components/FileGalleryModal";
+import VideoGalleryModal from "./components/VideoGalleryModal";
 import HistoryPreviewModal from "./components/HistoryPreviewModal";
 import LiveEditor from "./components/LiveEditor";
 import HistorySidebar from "./components/HistorySidebar";
@@ -56,6 +57,10 @@ const appVersion = packageJson.version;
 const isImageContent = (value: string) =>
   /^data:image\/[a-zA-Z]+;base64,/.test(value) ||
   /^https?:\/\/.+\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value);
+
+const isVideoContent = (value: string) =>
+  /^data:video\/[a-zA-Z]+;base64,/.test(value) ||
+  /^https?:\/\/.+\.(mp4|webm|ogg|mov|avi|mkv|m4v)(\?.*)?$/i.test(value);
 
 const isRemoteFile = (value: string) =>
   /^https?:\/\/.+\.[a-z0-9]+(\?.*)?$/i.test(value);
@@ -195,6 +200,15 @@ export default function DashboardPage() {
   const [isFileGalleryLoading, setIsFileGalleryLoading] = useState(false);
   const [isFileGalleryLoadingMore, setIsFileGalleryLoadingMore] =
     useState(false);
+  const [videoGallerySearch, setVideoGallerySearch] = useState("");
+  const [videoGalleryItems, setVideoGalleryItems] = useState<CopyItem[]>([]);
+  const [videoGalleryCursor, setVideoGalleryCursor] = useState<string | null>(
+    null,
+  );
+  const [videoGalleryHasMore, setVideoGalleryHasMore] = useState(true);
+  const [isVideoGalleryLoading, setIsVideoGalleryLoading] = useState(false);
+  const [isVideoGalleryLoadingMore, setIsVideoGalleryLoadingMore] =
+    useState(false);
   const [workspaceInfo, setWorkspaceInfo] = useState<string | null>(null);
   const [isWorkspaceSaving, setIsWorkspaceSaving] = useState(false);
   const [isInviteSaving, setIsInviteSaving] = useState(false);
@@ -222,6 +236,7 @@ export default function DashboardPage() {
   const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
   const [isImageGalleryOpen, setIsImageGalleryOpen] = useState(false);
   const [isFileGalleryOpen, setIsFileGalleryOpen] = useState(false);
+  const [isVideoGalleryOpen, setIsVideoGalleryOpen] = useState(false);
   const [previewImageIndex, setPreviewImageIndex] = useState<number | null>(
     null,
   );
@@ -295,10 +310,14 @@ export default function DashboardPage() {
   const imageGalleryLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const fileGalleryObserverRef = useRef<IntersectionObserver | null>(null);
   const fileGalleryLoadMoreRef = useRef<HTMLDivElement | null>(null);
+  const videoGalleryObserverRef = useRef<IntersectionObserver | null>(null);
+  const videoGalleryLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const imageGalleryLoadingMoreRef = useRef(isImageGalleryLoadingMore);
   const imageGalleryHasMoreRef = useRef(imageGalleryHasMore);
   const fileGalleryLoadingMoreRef = useRef(isFileGalleryLoadingMore);
   const fileGalleryHasMoreRef = useRef(fileGalleryHasMore);
+  const videoGalleryLoadingMoreRef = useRef(isVideoGalleryLoadingMore);
+  const videoGalleryHasMoreRef = useRef(videoGalleryHasMore);
 
   const socketRef = useRef<Socket | null>(null);
   const lastContentRef = useRef(content);
@@ -699,6 +718,59 @@ export default function DashboardPage() {
     [fileGallerySearch, selectedWorkspaceId],
   );
 
+  const loadVideoGallery = useCallback(
+    async (cursor: string | null = null, isInitial: boolean = false) => {
+      if (
+        videoGalleryLoadingMoreRef.current ||
+        (!videoGalleryHasMoreRef.current && !isInitial)
+      ) {
+        return;
+      }
+
+      if (isInitial) {
+        setIsVideoGalleryLoading(true);
+        setVideoGalleryHasMore(true);
+      } else {
+        setIsVideoGalleryLoadingMore(true);
+      }
+
+      try {
+        const url = new URL("/api/copy-items", window.location.origin);
+        if (cursor) url.searchParams.set("cursor", cursor);
+        if (videoGallerySearch) {
+          url.searchParams.set("search", videoGallerySearch);
+        }
+        if (selectedWorkspaceId) {
+          url.searchParams.set("workspaceId", selectedWorkspaceId);
+        }
+        url.searchParams.set("limit", "20");
+        url.searchParams.set("type", "video");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Failed to load video gallery.");
+
+        const data: FetchHistoryResponse = await res.json();
+        if (isInitial) {
+          setVideoGalleryItems(data.items);
+        } else {
+          setVideoGalleryItems((prev) => [...prev, ...data.items]);
+        }
+
+        setVideoGalleryCursor(data.nextCursor);
+        setVideoGalleryHasMore(!!data.nextCursor);
+      } catch (err) {
+        setError(
+          (err as Error).message ||
+            "An error occurred while loading the video gallery.",
+        );
+      } finally {
+        setIsVideoGalleryLoading(false);
+        setIsVideoGalleryLoadingMore(false);
+      }
+    },
+    [videoGallerySearch, selectedWorkspaceId],
+  );
+
   // Initial load or search change
   useEffect(() => {
     if (isAuthenticated) {
@@ -735,6 +807,21 @@ export default function DashboardPage() {
     fileGallerySearch,
     selectedWorkspaceId,
     loadFileGallery,
+  ]);
+
+  useEffect(() => {
+    if (isAuthenticated && isVideoGalleryOpen) {
+      setVideoGalleryCursor(null);
+      setVideoGalleryHasMore(true);
+      setVideoGalleryItems([]);
+      loadVideoGallery(null, true);
+    }
+  }, [
+    isAuthenticated,
+    isVideoGalleryOpen,
+    videoGallerySearch,
+    selectedWorkspaceId,
+    loadVideoGallery,
   ]);
 
   useEffect(() => {
@@ -848,6 +935,47 @@ export default function DashboardPage() {
     isFileGalleryLoadingMore,
     isFileGalleryOpen,
     loadFileGallery,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isVideoGalleryOpen ||
+      !videoGalleryHasMore ||
+      isVideoGalleryLoadingMore ||
+      isVideoGalleryLoading
+    )
+      return;
+
+    if (videoGalleryObserverRef.current)
+      videoGalleryObserverRef.current.disconnect();
+
+    videoGalleryObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          videoGalleryHasMore &&
+          !isVideoGalleryLoadingMore
+        ) {
+          loadVideoGallery(videoGalleryCursor, false);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    if (videoGalleryLoadMoreRef.current) {
+      videoGalleryObserverRef.current.observe(videoGalleryLoadMoreRef.current);
+    }
+
+    return () => {
+      if (videoGalleryObserverRef.current)
+        videoGalleryObserverRef.current.disconnect();
+    };
+  }, [
+    videoGalleryCursor,
+    videoGalleryHasMore,
+    isVideoGalleryLoadingMore,
+    isVideoGalleryOpen,
+    loadVideoGallery,
   ]);
 
   // Socket Connection Lifecycle
@@ -1815,6 +1943,25 @@ export default function DashboardPage() {
           downloadingIds={downloadingIds}
           getFileNameFromUrl={getFileNameFromUrl}
         />
+
+        <VideoGalleryModal
+          isOpen={isVideoGalleryOpen}
+          searchValue={videoGallerySearch}
+          items={videoGalleryItems}
+          copyingIds={copyingIds}
+          downloadingIds={downloadingIds}
+          deletingIds={deletingIds}
+          isLoadingMore={isVideoGalleryLoadingMore}
+          hasMore={videoGalleryHasMore}
+          loadMoreRef={videoGalleryLoadMoreRef}
+          onClose={() => setIsVideoGalleryOpen(false)}
+          onSearchChange={setVideoGallerySearch}
+          onCopy={handleCopy}
+          onDownload={downloadContent}
+          onDelete={handleDelete}
+          getFileNameFromUrl={getFileNameFromUrl}
+          getFileSize={getFileSize}
+        />
         {previewImage !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95">
             <div className="absolute inset-0" />
@@ -2016,6 +2163,7 @@ export default function DashboardPage() {
             onSearchQueryChange={setSearchQuery}
             onOpenImageGallery={() => setIsImageGalleryOpen(true)}
             onOpenFileGallery={() => setIsFileGalleryOpen(true)}
+            onOpenVideoGallery={() => setIsVideoGalleryOpen(true)}
             onCopy={handleCopy}
             onDelete={handleDelete}
             onDownload={downloadContent}
@@ -2028,6 +2176,7 @@ export default function DashboardPage() {
             downloadingIds={downloadingIds}
             deletingIds={deletingIds}
             isImageContent={isImageContent}
+            isVideoContent={isVideoContent}
             isRemoteFile={isRemoteFile}
             getImageSrc={getImageSrc}
             getFileNameFromUrl={getFileNameFromUrl}

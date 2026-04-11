@@ -18,6 +18,10 @@ interface HistoryPreviewModalProps {
   getFileNameFromUrl: (url: string) => string;
 }
 
+const isVideoContent = (value: string) =>
+  /^data:video\/[a-zA-Z]+;base64,/.test(value) ||
+  /^https?:\/\/.+\.(mp4|webm|ogg|mov|avi|mkv|m4v)(\?.*)?$/i.test(value);
+
 export default function HistoryPreviewModal({
   item,
   onClose,
@@ -29,15 +33,19 @@ export default function HistoryPreviewModal({
 }: HistoryPreviewModalProps) {
   if (!item) return null;
 
+  const isVideo = isVideoContent(item.content);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-4 py-6">
       <div className="absolute inset-0" />
       <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Preview image</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Preview {isVideo ? "video" : "image"}
+            </h2>
             <p className="text-sm text-slate-400">
-              Preview an image from clipboard history.
+              Preview a {isVideo ? "video" : "image"} from clipboard history.
             </p>
           </div>
           <button
@@ -51,14 +59,23 @@ export default function HistoryPreviewModal({
         </div>
         <div className="p-6">
           <div className="mx-auto max-h-[70vh] w-full overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-4">
-            <Image
-              src={item.content}
-              alt={item.fileName ?? "Preview image"}
-              width={1200}
-              height={900}
-              unoptimized
-              className="mx-auto max-h-[62vh] w-full object-contain"
-            />
+            {isVideo ? (
+              <video
+                controls
+                className="mx-auto max-h-[62vh] w-full rounded-2xl bg-black object-contain"
+                src={item.content}
+                playsInline
+              />
+            ) : (
+              <Image
+                src={item.content}
+                alt={item.fileName ?? "Preview image"}
+                width={1200}
+                height={900}
+                unoptimized
+                className="mx-auto max-h-[62vh] w-full object-contain"
+              />
+            )}
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
             <button
