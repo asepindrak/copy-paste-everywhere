@@ -18,6 +18,7 @@ import Image from "next/image";
 interface CopyItem {
   id: string;
   content: string;
+  workspaceId?: string | null;
   createdAt: string;
 }
 
@@ -136,6 +137,18 @@ export default function DashboardPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const [currentFileSize, setCurrentFileSize] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
+    null,
+  );
+  const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState("");
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [workspaceCreateName, setWorkspaceCreateName] = useState("");
+  const [workspaceInfo, setWorkspaceInfo] = useState<string | null>(null);
+  const [isWorkspaceSaving, setIsWorkspaceSaving] = useState(false);
+  const [isInviteSaving, setIsInviteSaving] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
@@ -150,12 +163,36 @@ export default function DashboardPage() {
 
   const socketRef = useRef<Socket | null>(null);
   const lastContentRef = useRef(content);
+  const selectedWorkspaceIdRef = useRef<string | null>(selectedWorkspaceId);
+  const currentJoinedWorkspaceIdRef = useRef<string | null>(null);
+  const debouncedSearchRef = useRef<string>(debouncedSearch);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const isLoadingMoreRef = useRef(isLoadingMore);
   const hasMoreRef = useRef(hasMore);
 
   const isAuthenticated = status === "authenticated";
+  const ACTIVE_WORKSPACE_STORAGE_KEY = "activeWorkspaceId";
+
+  useEffect(() => {
+    const storedWorkspaceId = window.localStorage.getItem(
+      ACTIVE_WORKSPACE_STORAGE_KEY,
+    );
+    if (storedWorkspaceId) {
+      setSelectedWorkspaceId(storedWorkspaceId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedWorkspaceId) {
+      window.localStorage.setItem(
+        ACTIVE_WORKSPACE_STORAGE_KEY,
+        selectedWorkspaceId,
+      );
+    } else {
+      window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+    }
+  }, [selectedWorkspaceId]);
 
   // Use a more stable socket URL
   const socketUrl = useMemo(() => {
@@ -219,6 +256,134 @@ export default function DashboardPage() {
     setCurrentFileSize(null);
   }, [content]);
 
+  const loadWorkspaces = useCallback(async () => {
+    try {
+      const res = await fetch("/api/workspaces");
+      if (!res.ok) throw new Error("Failed to load workspaces.");
+
+      const data = await res.json();
+      const availableWorkspaces = data.workspaces ?? [];
+      setWorkspaces(availableWorkspaces);
+
+      if (
+        selectedWorkspaceId &&
+        !availableWorkspaces.some(
+          (workspace: { id: string }) => workspace.id === selectedWorkspaceId,
+        )
+      ) {
+        setSelectedWorkspaceId(null);
+      }
+    } catch (error) {
+      console.error(error);
+      setError(
+        error instanceof Error ? error.message : "Unable to fetch workspaces.",
+      );
+    }
+  }, [selectedWorkspaceId]);
+
+  const loadPendingInvites = useCallback(async () => {
+    try {
+      const res = await fetch("/api/workspaces/invites");
+      if (!res.ok) throw new Error("Failed to load workspace invites.");
+
+      const data = await res.json();
+      setPendingInvites(data.invites ?? []);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  const handleCreateWorkspace = async () => {
+    if (!workspaceCreateName.trim()) {
+      setWorkspaceInfo("Workspace name cannot be empty.");
+      return;
+    }
+
+    setIsWorkspaceSaving(true);
+    setWorkspaceInfo(null);
+
+    try {
+      const res = await fetch("/api/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: workspaceCreateName.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create workspace.");
+      }
+
+      const data = await res.json();
+      setWorkspaceCreateName("");
+      setWorkspaceInfo("Workspace created successfully.");
+      await loadWorkspaces();
+      setSelectedWorkspaceId(data.workspace?.id ?? null);
+    } catch (error) {
+      setWorkspaceInfo(
+        error instanceof Error ? error.message : "Unable to create workspace.",
+      );
+    } finally {
+      setIsWorkspaceSaving(false);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!workspaceInviteEmail.trim() || !selectedWorkspaceId) {
+      setWorkspaceInfo("Invite email and workspace selection are required.");
+      return;
+    }
+
+    setIsInviteSaving(true);
+    setWorkspaceInfo(null);
+
+    try {
+      const res = await fetch(`/api/workspaces/${selectedWorkspaceId}/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteeEmail: workspaceInviteEmail.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send invite.");
+      }
+
+      setWorkspaceInviteEmail("");
+      setWorkspaceInfo("Invite sent successfully.");
+      await loadPendingInvites();
+    } catch (error) {
+      setWorkspaceInfo(
+        error instanceof Error ? error.message : "Unable to send invite.",
+      );
+    } finally {
+      setIsInviteSaving(false);
+    }
+  };
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch("/api/workspaces/invites/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to accept invite.");
+      }
+
+      await loadWorkspaces();
+      await loadPendingInvites();
+      setWorkspaceInfo("Invite accepted. Workspace added.");
+    } catch (error) {
+      setWorkspaceInfo(
+        error instanceof Error ? error.message : "Unable to accept invite.",
+      );
+    }
+  };
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -249,6 +414,9 @@ export default function DashboardPage() {
         const url = new URL("/api/copy-items", window.location.origin);
         if (cursor) url.searchParams.set("cursor", cursor);
         if (currentSearch) url.searchParams.set("search", currentSearch);
+        if (selectedWorkspaceId) {
+          url.searchParams.set("workspaceId", selectedWorkspaceId);
+        }
         url.searchParams.set("limit", "20");
 
         const res = await fetch(url.toString());
@@ -258,12 +426,15 @@ export default function DashboardPage() {
 
         if (isInitial) {
           setHistory(data.items);
-          // Only set content on truly initial load (not search)
-          if (data.items.length > 0 && !currentSearch && !cursor) {
+          if (data.items.length > 0) {
             const firstContent = data.items[0].content;
             setContent(firstContent);
             setContentType(isImageContent(firstContent) ? "image" : "text");
             lastContentRef.current = firstContent;
+          } else {
+            setContent("");
+            setContentType("text");
+            lastContentRef.current = "";
           }
         } else {
           setHistory((prev) => [...prev, ...data.items]);
@@ -279,7 +450,7 @@ export default function DashboardPage() {
         setIsLoadingMore(false);
       }
     },
-    [],
+    [selectedWorkspaceId],
   );
 
   // Initial load or search change
@@ -288,7 +459,14 @@ export default function DashboardPage() {
       setHasMore(true);
       loadHistory(null, true, debouncedSearch);
     }
-  }, [isAuthenticated, debouncedSearch, loadHistory]);
+  }, [isAuthenticated, debouncedSearch, loadHistory, selectedWorkspaceId]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadWorkspaces();
+      loadPendingInvites();
+    }
+  }, [isAuthenticated, loadWorkspaces, loadPendingInvites]);
 
   // Intersection Observer for Infinite Scroll
   useEffect(() => {
@@ -331,6 +509,14 @@ export default function DashboardPage() {
       console.log("Socket connected!");
       setIsConnected(true);
       setError(null);
+
+      if (
+        selectedWorkspaceIdRef.current &&
+        currentJoinedWorkspaceIdRef.current !== selectedWorkspaceIdRef.current
+      ) {
+        socket.emit("workspace:join", selectedWorkspaceIdRef.current);
+        currentJoinedWorkspaceIdRef.current = selectedWorkspaceIdRef.current;
+      }
     });
 
     socket.on("connect_error", (err) => {
@@ -342,12 +528,21 @@ export default function DashboardPage() {
     socket.on("clipboard:updated", (item: CopyItem) => {
       console.log("Received update:", item);
 
+      const isPersonal = !item.workspaceId;
+      const isActiveWorkspace =
+        item.workspaceId === selectedWorkspaceIdRef.current;
+      if (!(isPersonal || isActiveWorkspace)) {
+        return;
+      }
+
       // Only add to history if content is not empty
       if (item.content.trim()) {
         // Only add to history if it matches current search (or no search)
         if (
-          !debouncedSearch ||
-          item.content.toLowerCase().includes(debouncedSearch.toLowerCase())
+          !debouncedSearchRef.current ||
+          item.content
+            .toLowerCase()
+            .includes(debouncedSearchRef.current.toLowerCase())
         ) {
           setHistory((prev) => [
             item,
@@ -369,17 +564,52 @@ export default function DashboardPage() {
     socket.on("disconnect", (reason) => {
       console.log("Socket disconnected:", reason);
       setIsConnected(false);
+      currentJoinedWorkspaceIdRef.current = null;
       if (reason === "io server disconnect") {
         socket.connect();
       }
     });
 
     return () => {
+      currentJoinedWorkspaceIdRef.current = null;
       console.log("Cleaning up socket connection");
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated, socketUrl, debouncedSearch]);
+  }, [isAuthenticated, socketUrl]);
+
+  useEffect(() => {
+    selectedWorkspaceIdRef.current = selectedWorkspaceId;
+  }, [selectedWorkspaceId]);
+
+  useEffect(() => {
+    debouncedSearchRef.current = debouncedSearch;
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    selectedWorkspaceIdRef.current = selectedWorkspaceId;
+  }, [selectedWorkspaceId]);
+
+  useEffect(() => {
+    debouncedSearchRef.current = debouncedSearch;
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+
+    const previousWorkspaceId = currentJoinedWorkspaceIdRef.current;
+
+    if (previousWorkspaceId && previousWorkspaceId !== selectedWorkspaceId) {
+      socket.emit("workspace:leave", previousWorkspaceId);
+      currentJoinedWorkspaceIdRef.current = null;
+    }
+
+    if (selectedWorkspaceId && selectedWorkspaceId !== previousWorkspaceId) {
+      socket.emit("workspace:join", selectedWorkspaceId);
+      currentJoinedWorkspaceIdRef.current = selectedWorkspaceId;
+    }
+  }, [selectedWorkspaceId, isConnected]);
 
   // Debounced Update Logic
   const debouncedUpdate = useMemo(() => {
@@ -401,7 +631,10 @@ export default function DashboardPage() {
         setIsSaving(true);
         socket.emit(
           "clipboard:update",
-          { content: nextContent },
+          {
+            content: nextContent,
+            workspaceId: selectedWorkspaceId ?? undefined,
+          },
           (ack: ClipboardUpdateAck) => {
             if (ack?.error) {
               setError(ack.error);
@@ -415,7 +648,7 @@ export default function DashboardPage() {
         );
       }, 800);
     };
-  }, []);
+  }, [selectedWorkspaceId]);
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const val = event.target.value;
@@ -469,6 +702,9 @@ export default function DashboardPage() {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
       formData.append("file", file);
+      if (selectedWorkspaceId) {
+        formData.append("workspaceId", selectedWorkspaceId);
+      }
 
       xhr.open("POST", "/api/upload");
       xhr.upload.onprogress = (event) => {
@@ -875,6 +1111,160 @@ export default function DashboardPage() {
             </span>
           </div>
         </header>
+
+        <section className="mb-8 rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">
+                Workspace & Invite Panel
+              </h2>
+              <p className="text-sm text-slate-400">
+                Create shared workspaces or invite teammates to access the same
+                shared clipboard.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto]">
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2">
+                <label
+                  className="text-xs uppercase tracking-[0.2em] text-slate-500"
+                  htmlFor="workspace-select"
+                >
+                  Active workspace
+                </label>
+                <select
+                  id="workspace-select"
+                  value={selectedWorkspaceId ?? ""}
+                  onChange={(event) =>
+                    setSelectedWorkspaceId(event.target.value || null)
+                  }
+                  className="ml-2 rounded-xl bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-800 transition focus:ring-blue-500"
+                >
+                  <option value="">Personal clipboard</option>
+                  {workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateWorkspace}
+                disabled={isWorkspaceSaving}
+                className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isWorkspaceSaving ? "Creating..." : "Create Workspace"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+              <label
+                className="block text-sm font-medium text-slate-300"
+                htmlFor="workspace-name"
+              >
+                New workspace name
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="workspace-name"
+                  value={workspaceCreateName}
+                  onChange={(event) =>
+                    setWorkspaceCreateName(event.target.value)
+                  }
+                  className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="Team clipboard"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateWorkspace}
+                  disabled={isWorkspaceSaving}
+                  className="rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+              <label
+                className="block text-sm font-medium text-slate-300"
+                htmlFor="invite-email"
+              >
+                Invite teammate by email
+              </label>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="invite-email"
+                  type="email"
+                  value={workspaceInviteEmail}
+                  onChange={(event) =>
+                    setWorkspaceInviteEmail(event.target.value)
+                  }
+                  className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="name@example.com"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendInvite}
+                  disabled={isInviteSaving || !selectedWorkspaceId}
+                  className="rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isInviteSaving ? "Sending..." : "Send Invite"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {workspaceInfo && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
+              {workspaceInfo}
+            </div>
+          )}
+
+          {pendingInvites.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm text-slate-200">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-semibold text-white">
+                  Pending Workspace Invites
+                </span>
+                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  Accept to join
+                </span>
+              </div>
+              <div className="space-y-3">
+                {pendingInvites.map((invite) => (
+                  <div
+                    key={invite.id}
+                    className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm text-slate-300">
+                        Invite to{" "}
+                        <span className="font-semibold text-white">
+                          {invite.workspace?.name}
+                        </span>
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        From {invite.invitedBy?.email || "unknown"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptInvite(invite.id)}
+                      className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                    >
+                      Accept invite
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
 
         {error && (
           <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-3">

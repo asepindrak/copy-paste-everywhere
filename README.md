@@ -25,6 +25,7 @@
 - **Downloadable Items**: Download uploaded files directly from the dashboard.
 - **File Metadata**: File-type and file-size badges appear for uploaded files.
 - **History Tracking**: Keep track of your previous clipboard items.
+- **Workspace Collaboration**: Create workspaces, invite teammates, and sync clipboard items only within active shared workspaces.
 - **One-Click Actions**: "Copy All" and "Paste & Replace" buttons with visual feedback animations.
 - **Modern UI**: Clean, responsive dark-themed dashboard built with Tailwind CSS.
 

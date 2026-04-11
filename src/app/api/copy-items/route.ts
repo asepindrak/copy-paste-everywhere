@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { getPrisma } from "@/lib/prisma";
+import { getWorkspaceByIdIfMember } from "@/lib/workspace";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -15,23 +16,34 @@ export async function GET(req: NextRequest) {
     const cursor = searchParams.get("cursor");
     const limit = parseInt(searchParams.get("limit") || "20");
     const search = searchParams.get("search") || "";
+    const workspaceId = searchParams.get("workspaceId") || null;
 
     const prisma = getPrisma();
+    const workspace = workspaceId
+      ? await getWorkspaceByIdIfMember(workspaceId, session.user.id)
+      : null;
 
-    // If searching, we need a different approach because data is encrypted in DB
+    const baseWhere = workspaceId
+      ? { workspaceId: workspace?.id }
+      : { userId: session.user.id, workspaceId: null };
+
+    if (workspaceId && !workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found." },
+        { status: 404 },
+      );
+    }
+
     if (search) {
-      // Fetch a larger chunk to filter in memory
-      // Note: In a massive scale app, we would use blind indexing.
-      // For a clipboard app, fetching recent 200 items and filtering is fast and secure.
       const allItems = cursor
         ? await prisma.copyItem.findMany({
-            where: { userId: session.user.id },
+            where: baseWhere,
             orderBy: { createdAt: "desc" },
             skip: 1,
             cursor: { id: cursor },
           })
         : await prisma.copyItem.findMany({
-            where: { userId: session.user.id },
+            where: baseWhere,
             orderBy: { createdAt: "desc" },
             take: 500,
           });
@@ -50,7 +62,6 @@ export async function GET(req: NextRequest) {
         }
 
         if (filteredItems.length === limit) {
-          // Find the next item in allItems to set as cursor
           const currentIndex = allItems.indexOf(item);
           if (currentIndex < allItems.length - 1) {
             nextCursor = allItems[currentIndex + 1].id;
@@ -65,9 +76,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Normal flow (no search) - keep it efficient with DB pagination
     const copyItems = await prisma.copyItem.findMany({
-      where: { userId: session.user.id },
+      where: baseWhere,
       orderBy: { createdAt: "desc" },
       take: limit + 1,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),

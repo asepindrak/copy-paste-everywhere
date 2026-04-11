@@ -8,6 +8,7 @@ import * as cookie from "cookie";
 import { getToken } from "next-auth/jwt";
 import { getPrisma } from "./src/lib/prisma";
 import { isImageDataUrl, uploadBase64ImageToS3, useS3 } from "./src/lib/s3";
+import { getWorkspaceByIdIfMember } from "./src/lib/workspace";
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT ?? 3000);
@@ -29,6 +30,7 @@ const server = http.createServer((req, res) => {
 
 interface CopyItemPayload {
   content: string;
+  workspaceId?: string;
 }
 
 interface ClipboardUpdateAck {
@@ -98,12 +100,31 @@ io.use(async (socket, next) => {
   }
 });
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   const userId = socket.data.userId as string;
   const room = `user:${userId}`;
 
   console.log(`Socket connected: ${socket.id} for user: ${userId}`);
   socket.join(room);
+
+  socket.on("workspace:join", async (workspaceId: string) => {
+    if (!workspaceId) return;
+
+    const workspace = await getWorkspaceByIdIfMember(workspaceId, userId);
+    if (!workspace) {
+      return;
+    }
+
+    console.log(`Socket ${socket.id} joining workspace:${workspaceId}`);
+    socket.join(`workspace:${workspaceId}`);
+  });
+
+  socket.on("workspace:leave", async (workspaceId: string) => {
+    if (!workspaceId) return;
+
+    console.log(`Socket ${socket.id} leaving workspace:${workspaceId}`);
+    socket.leave(`workspace:${workspaceId}`);
+  });
 
   socket.on(
     "clipboard:update",
@@ -127,6 +148,14 @@ io.on("connection", (socket) => {
           return callback({ item: result });
         }
 
+        const allowedWorkspaceId = payload.workspaceId
+          ? await getWorkspaceByIdIfMember(payload.workspaceId, userId)
+          : null;
+
+        if (payload.workspaceId && !allowedWorkspaceId) {
+          return callback({ error: "Invalid workspace access." });
+        }
+
         const contentToStore =
           useS3 && isImageDataUrl(payload.content)
             ? await uploadBase64ImageToS3(userId, payload.content)
@@ -136,17 +165,22 @@ io.on("connection", (socket) => {
           data: {
             content: contentToStore,
             userId,
+            workspaceId: allowedWorkspaceId ? payload.workspaceId : null,
           },
         });
 
         const result = {
           id: item.id,
           content: item.content,
+          workspaceId: item.workspaceId,
           createdAt: item.createdAt.toISOString(),
         };
 
-        // Emit to all devices of the same user, including the sender
-        io.to(room).emit("clipboard:updated", result);
+        const targetRoom = allowedWorkspaceId
+          ? `workspace:${payload.workspaceId}`
+          : room;
+
+        io.to(targetRoom).emit("clipboard:updated", result);
         callback({ item: result });
       } catch (error) {
         console.error("Database error in clipboard:update:", error);

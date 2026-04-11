@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { getPrisma } from "@/lib/prisma";
+import { getWorkspaceByIdIfMember } from "@/lib/workspace";
 import { MAX_S3_UPLOAD_SIZE, s3Client, uploadFileToS3, useS3 } from "@/lib/s3";
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const file = formData.get("file");
+  const workspaceId = String(formData.get("workspaceId") || "").trim() || null;
 
   if (!file || typeof file === "string" || !(file instanceof File)) {
     return NextResponse.json({ error: "File is required." }, { status: 400 });
@@ -32,6 +34,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let workspace = null;
+  if (workspaceId) {
+    workspace = await getWorkspaceByIdIfMember(workspaceId, session.user.id);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found or access denied." },
+        { status: 403 },
+      );
+    }
+  }
+
   try {
     const url = await uploadFileToS3(session.user.id, file);
     const prisma = getPrisma();
@@ -39,6 +52,7 @@ export async function POST(req: NextRequest) {
       data: {
         content: url,
         userId: session.user.id,
+        workspaceId: workspace?.id ?? null,
       },
     });
 

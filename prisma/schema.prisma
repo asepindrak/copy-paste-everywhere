@@ -7,23 +7,84 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  name      String?
-  password  String
+  id                   String            @id @default(cuid())
+  email                String            @unique
+  name                 String?
+  password             String
+  copyItems            CopyItem[]
+  workspacesOwned      Workspace[]       @relation("workspaceOwner")
+  workspaceMemberships WorkspaceMember[]
+  workspaceInvites     WorkspaceInvite[] @relation("workspaceInvitee")
+  workspaceInvitesSent WorkspaceInvite[] @relation("workspaceInviter")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+}
+
+enum WorkspaceMemberRole {
+  owner
+  member
+}
+
+enum InviteStatus {
+  pending
+  accepted
+}
+
+model Workspace {
+  id        String            @id @default(cuid())
+  name      String
+  ownerId   String
+  owner     User              @relation("workspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   WorkspaceMember[]
+  invites   WorkspaceInvite[]
   copyItems CopyItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String              @id @default(cuid())
+  workspaceId String
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceMemberRole @default(member)
+  joinedAt    DateTime            @default(now())
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model WorkspaceInvite {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviteeId    String?
+  invitee      User?        @relation("workspaceInvitee", fields: [inviteeId], references: [id])
+  inviteeEmail String
+  invitedById  String
+  invitedBy    User         @relation("workspaceInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  status       InviteStatus @default(pending)
+  createdAt    DateTime     @default(now())
+  acceptedAt   DateTime?
+
+  @@index([workspaceId])
+  @@index([inviteeEmail])
 }
 
 model CopyItem {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String     @id @default(cuid())
+  content     String     @db.Text
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([userId])
+  @@index([workspaceId])
   @@index([createdAt])
 }
