@@ -53,11 +53,14 @@ export async function GET(req: NextRequest) {
       const searchLower = search.toLowerCase();
 
       for (const item of allItems) {
-        if (/^data:image\/[a-zA-Z]+;base64,/.test(item.content)) {
-          continue;
-        }
+        const isDataImage = /^data:image\/[a-zA-Z]+;base64,/.test(item.content);
+        const contentMatches =
+          !isDataImage && item.content.toLowerCase().includes(searchLower);
+        const fileNameMatches = item.fileName
+          ?.toLowerCase()
+          .includes(searchLower);
 
-        if (item.content.toLowerCase().includes(searchLower)) {
+        if (contentMatches || fileNameMatches) {
           filteredItems.push(item);
         }
 

@@ -46,11 +46,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const fileName = file.name || "download";
     const url = await uploadFileToS3(session.user.id, file);
     const prisma = getPrisma();
     const item = await prisma.copyItem.create({
       data: {
         content: url,
+        fileName,
         userId: session.user.id,
         workspaceId: workspace?.id ?? null,
       },
