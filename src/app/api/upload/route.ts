@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/authOptions";
 import { getPrisma } from "@/lib/prisma";
 import { getWorkspaceByIdIfMember } from "@/lib/workspace";
 import { MAX_S3_UPLOAD_SIZE, s3Client, uploadFileToS3, useS3 } from "@/lib/s3";
+import { getSocketServer } from "@/lib/socket";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -61,21 +62,30 @@ export async function POST(req: NextRequest) {
       include: { user: true },
     });
 
-    return NextResponse.json({
-      item: {
-        id: item.id,
-        content: item.content,
-        fileName: item.fileName,
-        fileSize: item.fileSize,
-        userId: item.userId,
-        createdAt: item.createdAt.toISOString(),
-        user: {
-          id: item.user.id,
-          name: item.user.name,
-          email: item.user.email,
-        },
+    const result = {
+      id: item.id,
+      content: item.content,
+      fileName: item.fileName,
+      fileSize: item.fileSize,
+      userId: item.userId,
+      user: {
+        id: item.user.id,
+        name: item.user.name,
+        email: item.user.email,
       },
-    });
+      workspaceId: item.workspaceId,
+      createdAt: item.createdAt.toISOString(),
+    };
+
+    const io = getSocketServer();
+    if (io) {
+      const targetRoom = workspace?.id
+        ? `workspace:${workspace.id}`
+        : `user:${session.user.id}`;
+      io.to(targetRoom).emit("clipboard:updated", result);
+    }
+
+    return NextResponse.json({ item: result });
   } catch (error) {
     console.error("Upload failed:", error);
     return NextResponse.json(

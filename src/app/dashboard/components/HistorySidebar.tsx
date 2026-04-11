@@ -31,6 +31,7 @@ interface HistorySidebarProps {
   isImageContent: (value: string) => boolean;
   isVideoContent: (value: string) => boolean;
   isRemoteFile: (value: string) => boolean;
+  isLocalPath: (value: string) => boolean;
   getImageSrc: (src: string) => string;
   getFileNameFromUrl: (url: string) => string;
   getFileType: (value: string) => string | null;
@@ -58,6 +59,7 @@ export default function HistorySidebar({
   isImageContent,
   isVideoContent,
   isRemoteFile,
+  isLocalPath,
   getImageSrc,
   getFileNameFromUrl,
   getFileType,
@@ -158,6 +160,28 @@ export default function HistorySidebar({
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex flex-1 min-w-0 flex-wrap items-center gap-2">
+                        {isLocalPath(item.content) && (
+                          <span
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-500"
+                            title="Local file path (Not an actual file)"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                              <path d="M12 9v4" />
+                              <path d="M12 17h.01" />
+                            </svg>
+                          </span>
+                        )}
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                           {new Date(item.createdAt).toLocaleDateString()}{" "}
                           {new Date(item.createdAt).toLocaleTimeString([], {
@@ -369,7 +393,21 @@ export default function HistorySidebar({
                         </button>
                       </div>
                     </div>
-                    {isImageContent(item.content) ? (
+                    {isVideoContent(item.content) ? (
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2">
+                        <div
+                          className="flex aspect-video w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-900 transition hover:bg-slate-800"
+                          onClick={() => setHistoryPreviewItem(item)}
+                        >
+                          <FaVideo className="h-10 w-10 text-slate-600" />
+                        </div>
+                        {item.fileName && (
+                          <p className="mt-3 truncate text-sm text-slate-300">
+                            {item.fileName}
+                          </p>
+                        )}
+                      </div>
+                    ) : isImageContent(item.content) ? (
                       <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2">
                         <Image
                           src={getImageSrc(item.content)}

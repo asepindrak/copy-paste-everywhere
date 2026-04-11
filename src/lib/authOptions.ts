@@ -49,6 +49,7 @@ export const authOptions = {
     async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = user.id;
+        token.email = user.email; // Ensure email is in the token
       }
       return token;
     },

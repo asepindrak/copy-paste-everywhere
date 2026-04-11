@@ -76,6 +76,7 @@ export async function acceptWorkspaceInvite(
 ) {
   const invite = await getPrisma().workspaceInvite.findUnique({
     where: { id: inviteId },
+    include: { workspace: true, invitedBy: true },
   });
 
   if (!invite) {
@@ -114,5 +115,5 @@ export async function acceptWorkspaceInvite(
     },
   });
 
-  return membership;
+  return { membership, invite };
 }

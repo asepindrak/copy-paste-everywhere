@@ -5,6 +5,7 @@ import {
   getWorkspaceByIdIfMember,
   createWorkspaceInvite,
 } from "@/lib/workspace";
+import { getSocketServer } from "@/lib/socket";
 
 export async function POST(
   req: NextRequest,
@@ -44,5 +45,27 @@ export async function POST(
     inviteeEmail,
     session.user.id,
   );
+
+  // Emit socket event to the invitee
+  const io = getSocketServer();
+  if (io) {
+    const emailRoom = `email:${inviteeEmail}`;
+    console.log(`Emitting workspace:invite to ${emailRoom}`);
+    io.to(emailRoom).emit("workspace:invite", {
+      invite: {
+        id: invite.id,
+        workspace: {
+          name: workspace.name,
+        },
+        invitedBy: {
+          name: session.user.name,
+          email: session.user.email,
+        },
+      },
+    });
+  } else {
+    console.warn("Socket server not available for invite emission");
+  }
+
   return NextResponse.json({ invite });
 }

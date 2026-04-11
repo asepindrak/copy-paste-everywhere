@@ -27,6 +27,7 @@ import {
   FaEye,
   FaSignOutAlt,
   FaTimes,
+  FaSpinner,
 } from "react-icons/fa";
 import Image from "next/image";
 import packageJson from "../../../package.json";
@@ -54,16 +55,42 @@ type ClipboardReadItem = {
 const MAX_UPLOAD_SIZE = 5 * 1024 ** 3; // 5 GB
 const appVersion = packageJson.version;
 
+const getExtensionFromUrl = (value: string) => {
+  try {
+    const parsed = new URL(value);
+    const fileName = parsed.pathname.split("/").pop();
+    const extension = fileName?.split(".").pop();
+    return extension ? extension.toLowerCase() : null;
+  } catch {
+    // Fallback for local file paths or strings that aren't valid URLs
+    const fileName = value.split(/[/\\]/).pop();
+    const extension = fileName?.split(".").pop();
+    return extension ? extension.toLowerCase() : null;
+  }
+};
+
+const isImageExtension = (extension: string | null) =>
+  /^(png|jpe?g|gif|webp|avif|svg|bmp|tiff|ico|jfif)$/i.test(extension ?? "");
+
+const isVideoExtension = (extension: string | null) =>
+  /^(mp4|webm|ogg|mov|avi|mkv|m4v|flv|wmv)$/i.test(extension ?? "");
+
 const isImageContent = (value: string) =>
   /^data:image\/[a-zA-Z]+;base64,/.test(value) ||
-  /^https?:\/\/.+\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value);
+  isImageExtension(getExtensionFromUrl(value));
 
 const isVideoContent = (value: string) =>
   /^data:video\/[a-zA-Z]+;base64,/.test(value) ||
-  /^https?:\/\/.+\.(mp4|webm|ogg|mov|avi|mkv|m4v)(\?.*)?$/i.test(value);
+  isVideoExtension(getExtensionFromUrl(value));
 
 const isRemoteFile = (value: string) =>
   /^https?:\/\/.+\.[a-z0-9]+(\?.*)?$/i.test(value);
+
+const isLocalPath = (value: string) =>
+  !value.startsWith("data:") &&
+  !value.startsWith("http://") &&
+  !value.startsWith("https://") &&
+  (value.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(value));
 
 const getFileNameFromUrl = (url: string) => {
   try {
@@ -143,6 +170,12 @@ const downloadBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+interface PendingInvite {
+  id: string;
+  workspace: { name: string };
+  invitedBy: { name: string | null; email: string };
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -173,7 +206,7 @@ export default function DashboardPage() {
     null,
   );
   const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState("");
-  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [workspaceCreateName, setWorkspaceCreateName] = useState("");
   const [workspaceUsers, setWorkspaceUsers] = useState<
     Record<string, { id: string; name?: string | null; email: string }>
@@ -221,6 +254,9 @@ export default function DashboardPage() {
   const [workspaceInfo, setWorkspaceInfo] = useState<string | null>(null);
   const [isWorkspaceSaving, setIsWorkspaceSaving] = useState(false);
   const [isInviteSaving, setIsInviteSaving] = useState(false);
+  const [acceptingInviteId, setAcceptingInviteId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     return () => {
@@ -288,11 +324,43 @@ export default function DashboardPage() {
     );
   }, [workspaceOptions, selectedWorkspaceId]);
 
+  const resetStates = useCallback(() => {
+    // Reset History
+    setHistory([]);
+    setNextCursor(null);
+    setHasMore(true);
+
+    // Reset Gallery States
+    setImageGalleryItems([]);
+    setImageGalleryCursor(null);
+    setImageGalleryHasMore(true);
+
+    setFileGalleryItems([]);
+    setFileGalleryCursor(null);
+    setFileGalleryHasMore(true);
+
+    setVideoGalleryItems([]);
+    setVideoGalleryCursor(null);
+    setVideoGalleryHasMore(true);
+
+    // Reset Editor
+    setContent("");
+    setContentType("text");
+    setCurrentFileName(null);
+    setCurrentFileSize(null);
+    setLastSavedAt(null);
+    lastContentRef.current = "";
+  }, []);
+
   const handleWorkspaceSelect = useCallback(
     (option: SingleValue<WorkspaceOption>) => {
-      setSelectedWorkspaceId(option?.value ? option.value : null);
+      const nextId = option?.value ? option.value : null;
+      if (nextId !== selectedWorkspaceIdRef.current) {
+        resetStates();
+        setSelectedWorkspaceId(nextId);
+      }
     },
-    [],
+    [resetStates],
   );
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -560,6 +628,7 @@ export default function DashboardPage() {
   };
 
   const handleAcceptInvite = async (inviteId: string) => {
+    setAcceptingInviteId(inviteId);
     try {
       const res = await fetch("/api/workspaces/invites/accept", {
         method: "POST",
@@ -579,6 +648,8 @@ export default function DashboardPage() {
       setWorkspaceInfo(
         error instanceof Error ? error.message : "Unable to accept invite.",
       );
+    } finally {
+      setAcceptingInviteId(null);
     }
   };
 
@@ -647,14 +718,27 @@ export default function DashboardPage() {
         if (isInitial) {
           setHistory(data.items);
           if (data.items.length > 0) {
-            const firstContent = data.items[0].content;
+            const firstItem = data.items[0];
+            const firstContent = firstItem.content;
             setContent(firstContent);
-            setContentType(isImageContent(firstContent) ? "image" : "text");
+            setContentType(
+              isImageContent(firstContent)
+                ? "image"
+                : isVideoContent(firstContent)
+                  ? "video"
+                  : "text",
+            );
+            setCurrentFileName(firstItem.fileName ?? null);
+            setCurrentFileSize(
+              firstItem.fileSize ? formatFileSize(firstItem.fileSize) : null,
+            );
             lastContentRef.current = firstContent;
+            setLastSavedAt(new Date(firstItem.createdAt).toLocaleTimeString());
           } else {
             setContent("");
             setContentType("text");
             lastContentRef.current = "";
+            setLastSavedAt(null);
           }
         } else {
           setHistory((prev) => [...prev, ...data.items]);
@@ -1064,13 +1148,15 @@ export default function DashboardPage() {
 
     const socket = io(socketUrl, {
       withCredentials: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      transports: ["polling", "websocket"], // Match server transports
     });
 
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      console.log("Socket connected:", socket.id);
       setIsConnected(true);
       setError(null);
 
@@ -1078,6 +1164,10 @@ export default function DashboardPage() {
         selectedWorkspaceIdRef.current &&
         currentJoinedWorkspaceIdRef.current !== selectedWorkspaceIdRef.current
       ) {
+        console.log(
+          "Re-joining workspace on connect:",
+          selectedWorkspaceIdRef.current,
+        );
         socket.emit("workspace:join", selectedWorkspaceIdRef.current);
         currentJoinedWorkspaceIdRef.current = selectedWorkspaceIdRef.current;
       }
@@ -1103,6 +1193,7 @@ export default function DashboardPage() {
           userId?: string;
         },
       ) => {
+        console.log("Received clipboard:updated", item.id);
         let enrichedItem = item as CopyItem;
 
         if (!item.userId && item.id) {
@@ -1198,12 +1289,41 @@ export default function DashboardPage() {
         // Only update content if it's different to avoid cursor jumps
         if (item.content !== lastContentRef.current) {
           setContent(item.content);
+          setContentType(
+            isImageContent(item.content)
+              ? "image"
+              : isVideoContent(item.content)
+                ? "video"
+                : "text",
+          );
           setCurrentFileName(item.fileName ?? null);
+          setCurrentFileSize(
+            item.fileSize ? formatFileSize(item.fileSize) : null,
+          );
           lastContentRef.current = item.content;
         }
 
         setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
         setIsSaving(false);
+      },
+    );
+
+    socket.on("workspace:invite", (data: { invite: PendingInvite }) => {
+      console.log("Received workspace:invite", data.invite.id);
+      setPendingInvites((prev) => [
+        data.invite,
+        ...prev.filter((i) => i.id !== data.invite.id),
+      ]);
+      showToast(`You have a new invite to join ${data.invite.workspace.name}`);
+    });
+
+    socket.on(
+      "workspace:invite:accepted",
+      (data: { workspaceName: string; inviteeName: string }) => {
+        showToast(
+          `${data.inviteeName} accepted your invite to ${data.workspaceName}`,
+        );
+        loadWorkspaces(); // Reload workspaces to update member list if needed
       },
     );
 
@@ -1250,6 +1370,12 @@ export default function DashboardPage() {
   // Debounced Update Logic
   const debouncedUpdate = useCallback(
     (nextContent: string) => {
+      // Don't sync local paths to history/other users
+      if (isLocalPath(nextContent)) {
+        console.log("Local path detected, skipping synchronization.");
+        return;
+      }
+
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
 
       updateTimeoutRef.current = setTimeout(() => {
@@ -1433,6 +1559,15 @@ export default function DashboardPage() {
             : "text",
       );
       setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
+      lastContentRef.current = item.content; // Update lastContent to avoid redundant socket update
+
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        socket.emit("clipboard:uploaded", {
+          item,
+          workspaceId: selectedWorkspaceIdRef.current ?? undefined,
+        });
+      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -1567,35 +1702,39 @@ export default function DashboardPage() {
     const fileItem = items.find((item) => item.kind === "file");
 
     const selectedItem = imageItem || videoItem || fileItem;
-    if (!selectedItem) return;
 
-    const file = selectedItem.getAsFile();
-    if (!file) return;
+    if (selectedItem) {
+      const file = selectedItem.getAsFile();
+      if (file) {
+        event.preventDefault();
 
-    event.preventDefault();
+        if (file.type.startsWith("image/")) {
+          await uploadFile(file);
+          setError(null);
+          setPasted(true);
+          showToast("Pasted image from clipboard");
+          setTimeout(() => setPasted(false), 2000);
+          return;
+        }
 
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setContent(dataUrl);
-        setContentType("image");
-        setCurrentFileSize(formatFileSize(getDataUrlSize(dataUrl)));
-        debouncedUpdate(dataUrl);
+        await uploadFile(file);
         setError(null);
         setPasted(true);
-        showToast("Pasted image from clipboard");
+        showToast("Pasted file from clipboard");
         setTimeout(() => setPasted(false), 2000);
-      };
-      reader.readAsDataURL(file);
-      return;
+        return;
+      }
     }
 
-    await uploadFile(file);
-    setError(null);
-    setPasted(true);
-    showToast("Pasted file from clipboard");
-    setTimeout(() => setPasted(false), 2000);
+    // If no file found but text/uri-list is present (Explorer copy-paste)
+    const uriList = event.clipboardData.getData("text/uri-list");
+    if (uriList) {
+      event.preventDefault();
+      showToast(
+        "Explorer file paths detected. Use Drag & Drop or Ctrl+V directly on the file.",
+      );
+      return;
+    }
   };
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -1679,9 +1818,8 @@ export default function DashboardPage() {
 
       let handled = false;
 
-      const onPasteLocal = async (event: Event) => {
-        const clipboardEvent = event as globalThis.ClipboardEvent;
-        const items = Array.from(clipboardEvent.clipboardData?.items || []);
+      const onPasteLocal = async (event: globalThis.ClipboardEvent) => {
+        const items = Array.from(event.clipboardData?.items || []);
         const imageItem = items.find((item) => item.type.startsWith("image/"));
         const videoItem = items.find((item) => item.type.startsWith("video/"));
         const fileItem = items.find((item) => item.kind === "file");
@@ -1691,17 +1829,17 @@ export default function DashboardPage() {
         }
 
         handled = true;
-        clipboardEvent.preventDefault();
-        clipboardEvent.stopImmediatePropagation();
-        textarea.removeEventListener("paste", onPasteLocal as any);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        textarea.removeEventListener("paste", onPasteLocal);
 
         await handlePasteEvent(
-          clipboardEvent as unknown as ClipboardEvent<HTMLTextAreaElement>,
+          event as unknown as ClipboardEvent<HTMLTextAreaElement>,
         );
         resolve(true);
       };
 
-      textarea.addEventListener("paste", onPasteLocal as any);
+      textarea.addEventListener("paste", onPasteLocal);
       textarea.focus();
       try {
         document.execCommand("paste");
@@ -1711,7 +1849,7 @@ export default function DashboardPage() {
 
       setTimeout(() => {
         if (!handled) {
-          textarea.removeEventListener("paste", onPasteLocal as any);
+          textarea.removeEventListener("paste", onPasteLocal);
           resolve(false);
         }
       }, 200);
@@ -1720,89 +1858,129 @@ export default function DashboardPage() {
 
   const handlePaste = async () => {
     try {
-      let pasted = false;
+      // 1. Try modern navigator.clipboard.read() first for images/files
+      if (navigator.clipboard && "read" in navigator.clipboard) {
+        try {
+          const clipboardItems = await (
+            navigator.clipboard as unknown as {
+              read(): Promise<ClipboardReadItem[]>;
+            }
+          ).read();
 
-      // Try to paste directly into the visible editor textarea (mimic Ctrl+V)
+          for (const item of clipboardItems) {
+            const imageType = item.types.find((type: string) =>
+              type.startsWith("image/"),
+            );
+            const videoType = item.types.find((type: string) =>
+              type.startsWith("video/"),
+            );
+            const fileType = item.types.find(
+              (type: string) =>
+                !type.startsWith("image/") &&
+                !type.startsWith("video/") &&
+                !type.startsWith("text/plain") &&
+                !type.startsWith("text/html") &&
+                !type.startsWith("text/rtf"),
+            );
+
+            if (imageType) {
+              const blob: Blob = await item.getType(imageType);
+              const file = createFileFromBlob(blob, "clipboard-image");
+              await uploadFile(file);
+              setError(null);
+              setPasted(true);
+              showToast("Pasted image from clipboard");
+              setTimeout(() => setPasted(false), 2000);
+              return;
+            }
+
+            if (videoType) {
+              const blob: Blob = await item.getType(videoType);
+              const file = createFileFromBlob(blob, "clipboard-video");
+              await uploadFile(file);
+              setError(null);
+              setPasted(true);
+              showToast("Pasted video from clipboard");
+              setTimeout(() => setPasted(false), 2000);
+              return;
+            }
+
+            if (fileType) {
+              try {
+                const blob: Blob = await item.getType(fileType);
+                // If it's a URI list, it's just text paths, don't update content state
+                if (fileType === "text/uri-list") {
+                  const text = await blob.text();
+                  if (text) {
+                    showToast(
+                      "Explorer file paths detected. Use Drag & Drop or Ctrl+V directly on the file.",
+                    );
+                    return;
+                  }
+                }
+
+                const file = createFileFromBlob(blob, "clipboard-file");
+                await uploadFile(file);
+                setError(null);
+                setPasted(true);
+                showToast("Pasted file from clipboard");
+                setTimeout(() => setPasted(false), 2000);
+                return;
+              } catch (err) {
+                console.warn(
+                  `Failed to read clipboard item of type ${fileType}:`,
+                  err,
+                );
+              }
+            }
+          }
+        } catch (readError) {
+          console.warn(
+            "navigator.clipboard.read() failed, falling back:",
+            readError,
+          );
+        }
+      }
+
+      // 2. Fallback: Try to paste directly into the visible editor textarea (mimic Ctrl+V)
       const editorPasteSuccess = await pasteIntoEditor();
       if (editorPasteSuccess) {
         return;
       }
 
-      if (navigator.clipboard && "read" in navigator.clipboard) {
-        const clipboardItems = await (
-          navigator.clipboard as unknown as {
-            read(): Promise<ClipboardReadItem[]>;
-          }
-        ).read();
-
-        for (const item of clipboardItems) {
-          const imageType = item.types.find((type: string) =>
-            type.startsWith("image/"),
-          );
-          const videoType = item.types.find((type: string) =>
-            type.startsWith("video/"),
-          );
-          const fileType = item.types.find(
-            (type: string) =>
-              !type.startsWith("image/") &&
-              !type.startsWith("video/") &&
-              type !== "text/plain",
-          );
-
-          if (imageType) {
-            const blob: Blob = await item.getType(imageType);
-            const dataUrl = await blobToDataURL(blob);
-            setContent(dataUrl);
-            setContentType("image");
-            debouncedUpdate(dataUrl);
-            setError(null);
-            setPasted(true);
-            showToast("Pasted from clipboard");
-            setTimeout(() => setPasted(false), 2000);
-            return;
-          }
-
-          if (videoType) {
-            const blob: Blob = await item.getType(videoType);
-            const file = createFileFromBlob(blob, "clipboard-video");
-            await uploadFile(file);
-            setError(null);
-            setPasted(true);
-            showToast("Pasted video from clipboard");
-            setTimeout(() => setPasted(false), 2000);
-            return;
-          }
-
-          if (fileType) {
-            const blob: Blob = await item.getType(fileType);
-            const file = createFileFromBlob(blob, "clipboard-file");
-            await uploadFile(file);
-            setError(null);
-            setPasted(true);
-            showToast("Pasted file from clipboard");
-            setTimeout(() => setPasted(false), 2000);
-            return;
-          }
-        }
+      // 3. Fallback: Try hidden textarea
+      const success = await pasteUsingHiddenTextarea();
+      if (success) {
+        return;
       }
 
-      if (!pasted) {
-        const success = await pasteUsingHiddenTextarea();
-        if (success) {
+      // 4. Final fallback: readText()
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        // If it's a local path, don't update content state at all to "cancel" the paste
+        if (isLocalPath(text)) {
+          showToast(
+            "Local file path detected. Use Drag & Drop or Ctrl+V directly on the file.",
+          );
           return;
         }
+
+        setContent(text);
+        setContentType(
+          isImageContent(text)
+            ? "image"
+            : isVideoContent(text)
+              ? "video"
+              : "text",
+        );
+        debouncedUpdate(text);
+        setError(null);
+        setPasted(true);
+        showToast("Pasted from clipboard");
+        setTimeout(() => setPasted(false), 2000);
       }
-
-      const text = await navigator.clipboard.readText();
-      setContent(text);
-      setContentType("text");
-      debouncedUpdate(text);
-      setError(null);
-
-      setPasted(true);
-      showToast("Pasted from clipboard");
-      setTimeout(() => setPasted(false), 2000);
-    } catch {
+    } catch (err) {
+      console.error("Paste failed:", err);
       setError("Failed to read clipboard. Please allow clipboard access.");
     }
   };
@@ -2122,9 +2300,17 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => handleAcceptInvite(invite.id)}
-                      className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                      disabled={acceptingInviteId === invite.id}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Accept invite
+                      {acceptingInviteId === invite.id ? (
+                        <>
+                          <FaSpinner className="h-4 w-4 animate-spin" />
+                          Accepting...
+                        </>
+                      ) : (
+                        "Accept invite"
+                      )}
                     </button>
                   </div>
                 ))}
@@ -2144,6 +2330,7 @@ export default function DashboardPage() {
             pendingInvites={pendingInvites}
             isWorkspaceSaving={isWorkspaceSaving}
             isInviteSaving={isInviteSaving}
+            acceptingInviteId={acceptingInviteId}
             onClose={() => setIsWorkspaceModalOpen(false)}
             onWorkspaceCreateNameChange={setWorkspaceCreateName}
             onWorkspaceInviteEmailChange={setWorkspaceInviteEmail}
@@ -2463,6 +2650,7 @@ export default function DashboardPage() {
             getFileNameFromUrl={getFileNameFromUrl}
             getFileType={getFileType}
             isRemoteFile={isRemoteFile}
+            isLocalPath={isLocalPath}
             isVideoContent={isVideoContent}
           />
 
@@ -2487,6 +2675,7 @@ export default function DashboardPage() {
             isImageContent={isImageContent}
             isVideoContent={isVideoContent}
             isRemoteFile={isRemoteFile}
+            isLocalPath={isLocalPath}
             getImageSrc={getImageSrc}
             getFileNameFromUrl={getFileNameFromUrl}
             getFileType={getFileType}

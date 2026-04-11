@@ -9,6 +9,7 @@ import { getToken } from "next-auth/jwt";
 import { getPrisma } from "./src/lib/prisma";
 import { isImageDataUrl, uploadBase64ImageToS3, useS3 } from "./src/lib/s3";
 import { getWorkspaceByIdIfMember } from "./src/lib/workspace";
+import { setSocketServer } from "./src/lib/socket";
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT ?? 3000);
@@ -84,14 +85,25 @@ io.use(async (socket, next) => {
         secureCookie: cookieName.startsWith("__Secure-"),
         cookieName,
       });
-      if (token) break;
+      if (token) {
+        console.log(`Socket Auth: Found token in ${cookieName}`);
+        break;
+      }
     }
 
     if (!token?.sub) {
+      console.warn("Socket Auth Failed: No valid token found in cookies", {
+        cookieNames,
+        hasCookies: !!cookieHeader,
+      });
       return next(new Error("Unauthorized"));
     }
 
     socket.data.userId = token.sub;
+    socket.data.userEmail = token.email; // Store in socket.data instead of request
+    console.log(
+      `Socket Auth Success: userId=${token.sub}, email=${token.email}`,
+    );
     next();
   } catch (error) {
     console.error("Socket Auth Error:", error);
@@ -99,28 +111,95 @@ io.use(async (socket, next) => {
   }
 });
 
+setSocketServer(io);
+
 io.on("connection", async (socket) => {
   const userId = socket.data.userId as string;
+  let userEmail = socket.data.userEmail as string | undefined;
   const room = `user:${userId}`;
 
   socket.join(room);
 
-  socket.on("workspace:join", async (workspaceId: string) => {
-    if (!workspaceId) return;
-
-    const workspace = await getWorkspaceByIdIfMember(workspaceId, userId);
-    if (!workspace) {
-      return;
+  // Fallback: If email is not in token, fetch from DB to ensure email room join
+  if (!userEmail) {
+    try {
+      const user = await getPrisma().user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      if (user) {
+        userEmail = user.email;
+        socket.data.userEmail = userEmail;
+        console.log(
+          `Socket Auth Fallback: email ${userEmail} found for user ${userId}`,
+        );
+      }
+    } catch (dbError) {
+      console.error(
+        `Socket Auth DB Fallback Error for user ${userId}:`,
+        dbError,
+      );
     }
+  }
 
-    socket.join(`workspace:${workspaceId}`);
-  });
+  // Join a room based on email for targeted notifications (e.g., invites)
+  if (userEmail) {
+    const emailRoom = `email:${userEmail.toLowerCase()}`;
+    socket.join(emailRoom);
+    console.log(
+      `Socket connected: ${socket.id}, user: ${userId}, joined email room: ${emailRoom}`,
+    );
+  } else {
+    console.warn(
+      `Socket connected: ${socket.id}, user: ${userId} (NO EMAIL FOUND)`,
+    );
+  }
 
-  socket.on("workspace:leave", async (workspaceId: string) => {
-    if (!workspaceId) return;
+  socket.on(
+    "workspace:join",
+    async (
+      workspaceId: string,
+      callback?: (ack: { success: boolean; error?: string }) => void,
+    ) => {
+      if (!workspaceId) {
+        callback?.({ success: false, error: "Workspace id is required." });
+        return;
+      }
 
-    socket.leave(`workspace:${workspaceId}`);
-  });
+      const workspace = await getWorkspaceByIdIfMember(workspaceId, userId);
+      if (!workspace) {
+        console.warn(
+          `Join Workspace Denied: user ${userId} tried to join ${workspaceId}`,
+        );
+        callback?.({
+          success: false,
+          error: "Workspace not found or access denied.",
+        });
+        return;
+      }
+
+      socket.join(`workspace:${workspaceId}`);
+      console.log(`User ${userId} joined workspace: ${workspaceId}`);
+      callback?.({ success: true });
+    },
+  );
+
+  socket.on(
+    "workspace:leave",
+    async (
+      workspaceId: string,
+      callback?: (ack: { success: boolean; error?: string }) => void,
+    ) => {
+      if (!workspaceId) {
+        callback?.({ success: false, error: "Workspace id is required." });
+        return;
+      }
+
+      socket.leave(`workspace:${workspaceId}`);
+      console.log(`User ${userId} left workspace: ${workspaceId}`);
+      callback?.({ success: true });
+    },
+  );
 
   socket.on(
     "clipboard:update",
@@ -133,6 +212,9 @@ io.on("connection", async (socket) => {
       }
 
       try {
+        console.log(
+          `Clipboard update from ${userId}, workspace: ${payload.workspaceId || "none"}`,
+        );
         // If content is empty or whitespace only, broadcast but don't save to DB
         if (!payload.content.trim()) {
           const result = {
@@ -143,7 +225,12 @@ io.on("connection", async (socket) => {
             user: undefined,
             workspaceId: payload.workspaceId ?? null,
           };
-          io.to(room).emit("clipboard:updated", result);
+
+          const targetRoom = payload.workspaceId
+            ? `workspace:${payload.workspaceId}`
+            : room;
+
+          io.to(targetRoom).emit("clipboard:updated", result);
           return callback({ item: result });
         }
 
@@ -188,11 +275,58 @@ io.on("connection", async (socket) => {
           ? `workspace:${payload.workspaceId}`
           : room;
 
+        console.log(`Broadcasting update to room: ${targetRoom}`);
         io.to(targetRoom).emit("clipboard:updated", result);
         callback({ item: result });
       } catch (error) {
         console.error("Database error in clipboard:update:", error);
         callback({ error: "Failed to save clipboard in real-time." });
+      }
+    },
+  );
+
+  socket.on(
+    "clipboard:uploaded",
+    async (
+      payload: { item: any; workspaceId?: string },
+      callback?: (ack: ClipboardUpdateAck) => void,
+    ) => {
+      if (
+        !payload ||
+        !payload.item ||
+        typeof payload.item.content !== "string"
+      ) {
+        return callback?.({ error: "Invalid upload payload." });
+      }
+
+      try {
+        console.log(
+          `Clipboard uploaded from ${userId}, workspace: ${payload.workspaceId || "none"}`,
+        );
+        const workspaceId = payload.workspaceId || payload.item.workspaceId;
+        const allowedWorkspace = workspaceId
+          ? await getWorkspaceByIdIfMember(workspaceId, userId)
+          : null;
+
+        if (workspaceId && !allowedWorkspace) {
+          return callback?.({ error: "Invalid workspace access." });
+        }
+
+        const result = {
+          ...payload.item,
+          workspaceId: allowedWorkspace ? workspaceId : null,
+          userId,
+          createdAt: payload.item.createdAt ?? new Date().toISOString(),
+        };
+
+        const targetRoom = allowedWorkspace ? `workspace:${workspaceId}` : room;
+
+        console.log(`Broadcasting upload to room: ${targetRoom}`);
+        io.to(targetRoom).emit("clipboard:updated", result);
+        callback?.({ item: result });
+      } catch (error) {
+        console.error("Error broadcasting uploaded clipboard item:", error);
+        callback?.({ error: "Failed to broadcast uploaded clipboard item." });
       }
     },
   );
