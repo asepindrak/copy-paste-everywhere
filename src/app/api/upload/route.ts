@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
         userId: session.user.id,
         workspaceId: workspace?.id ?? null,
       },
+      include: { user: true },
     });
 
     return NextResponse.json({
@@ -66,7 +67,13 @@ export async function POST(req: NextRequest) {
         content: item.content,
         fileName: item.fileName,
         fileSize: item.fileSize,
+        userId: item.userId,
         createdAt: item.createdAt.toISOString(),
+        user: {
+          id: item.user.id,
+          name: item.user.name,
+          email: item.user.email,
+        },
       },
     });
   } catch (error) {

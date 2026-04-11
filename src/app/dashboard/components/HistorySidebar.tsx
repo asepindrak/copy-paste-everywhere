@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { FaImages, FaFileAlt, FaVideo, FaEye } from "react-icons/fa";
 import type { RefObject } from "react";
 import type { CopyItem } from "../../../types/dashboard";
@@ -62,12 +63,22 @@ export default function HistorySidebar({
   getFileType,
   getFileSize,
 }: HistorySidebarProps) {
+  const { data: session } = useSession();
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
     return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
   };
+
+  const getUserLabel = (item: CopyItem) =>
+    item.user?.name ||
+    item.user?.email ||
+    (item.userId === session?.user?.id
+      ? session.user.name || session.user.email
+      : "Unknown user");
+
   return (
     <aside className="space-y-6 flex flex-col h-[600px]">
       <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl flex flex-col h-full overflow-hidden">
@@ -146,13 +157,16 @@ export default function HistorySidebar({
                     className="group relative rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex flex-1 min-w-0 items-center gap-2">
+                      <div className="flex flex-1 min-w-0 flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                           {new Date(item.createdAt).toLocaleDateString()}{" "}
                           {new Date(item.createdAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
+                        </span>
+                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                          {getUserLabel(item)}
                         </span>
                       </div>
                       <div className="flex flex-shrink-0 items-center gap-1 pl-3">

@@ -148,7 +148,9 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [content, setContent] = useState("");
-  const [contentType, setContentType] = useState<"text" | "image">("text");
+  const [contentType, setContentType] = useState<"text" | "image" | "video">(
+    "text",
+  );
   const [history, setHistory] = useState<CopyItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -173,6 +175,13 @@ export default function DashboardPage() {
   const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState("");
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [workspaceCreateName, setWorkspaceCreateName] = useState("");
+  const [workspaceUsers, setWorkspaceUsers] = useState<
+    Record<string, { id: string; name?: string | null; email: string }>
+  >({});
+
+  const workspaceUsersRef = useRef<
+    Record<string, { id: string; name?: string | null; email: string }>
+  >({});
 
   const imageHistory = useMemo(
     () => history.filter((item) => isImageContent(item.content)),
@@ -323,6 +332,7 @@ export default function DashboardPage() {
   const lastContentRef = useRef(content);
   const selectedWorkspaceIdRef = useRef<string | null>(selectedWorkspaceId);
   const currentJoinedWorkspaceIdRef = useRef<string | null>(null);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const debouncedSearchRef = useRef<string>(debouncedSearch);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -331,6 +341,44 @@ export default function DashboardPage() {
 
   const isAuthenticated = status === "authenticated";
   const ACTIVE_WORKSPACE_STORAGE_KEY = "activeWorkspaceId";
+
+  useEffect(() => {
+    workspaceUsersRef.current = workspaceUsers;
+  }, [workspaceUsers]);
+
+  const loadWorkspaceUsers = useCallback(async (workspaceId: string) => {
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+      if (!res.ok) {
+        throw new Error("Failed to load workspace members.");
+      }
+
+      const data = await res.json();
+      const users = data.users ?? [];
+      const mapping = Object.fromEntries(
+        users.map(
+          (user: { id: string; name?: string | null; email: string }) => [
+            user.id,
+            user,
+          ],
+        ),
+      );
+      setWorkspaceUsers(mapping);
+    } catch (error) {
+      console.warn("Could not load workspace users:", error);
+      setWorkspaceUsers({});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!selectedWorkspaceId) {
+      setWorkspaceUsers({});
+      return;
+    }
+
+    loadWorkspaceUsers(selectedWorkspaceId);
+  }, [isAuthenticated, loadWorkspaceUsers, selectedWorkspaceId]);
 
   useEffect(() => {
     const storedWorkspaceId = window.localStorage.getItem(
@@ -982,7 +1030,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isAuthenticated || !socketUrl) return;
 
-    console.log("Connecting to socket at:", socketUrl);
     const socket = io(socketUrl, {
       withCredentials: true,
       reconnectionAttempts: 5,
@@ -992,7 +1039,6 @@ export default function DashboardPage() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("Socket connected!");
       setIsConnected(true);
       setError(null);
 
@@ -1011,48 +1057,125 @@ export default function DashboardPage() {
       setError(`Realtime connection issue: ${err.message}`);
     });
 
-    socket.on("clipboard:updated", (item: CopyItem) => {
-      console.log("Received update:", item);
+    socket.on(
+      "clipboard:updated",
+      async (
+        item: Partial<CopyItem> & {
+          id: string;
+          content: string;
+          createdAt: string;
+          workspaceId?: string | null;
+          fileName?: string | null;
+          fileSize?: number | null;
+          user?: CopyItem["user"];
+          userId?: string;
+        },
+      ) => {
+        let enrichedItem = item as CopyItem;
 
-      const isPersonal = !item.workspaceId;
-      const isActiveWorkspace =
-        item.workspaceId === selectedWorkspaceIdRef.current;
-      if (!(isPersonal || isActiveWorkspace)) {
-        return;
-      }
-
-      // Only add to history if content is not empty
-      if (item.content.trim()) {
-        // Only add to history if it matches current search (or no search)
-        if (
-          !debouncedSearchRef.current ||
-          item.content
-            .toLowerCase()
-            .includes(debouncedSearchRef.current.toLowerCase()) ||
-          item.fileName
-            ?.toLowerCase()
-            .includes(debouncedSearchRef.current.toLowerCase())
-        ) {
-          setHistory((prev) => [
-            item,
-            ...prev.filter((existing) => existing.id !== item.id),
-          ]);
+        if (!item.userId && item.id) {
+          try {
+            const response = await fetch(`/api/copy-items/${item.id}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.item) {
+                enrichedItem = {
+                  ...enrichedItem,
+                  userId: data.item.userId,
+                  user: data.item.user,
+                };
+                if (data.item.userId && data.item.user) {
+                  setWorkspaceUsers((prev) => ({
+                    ...prev,
+                    [data.item.userId]: data.item.user,
+                  }));
+                }
+              }
+            }
+          } catch (error) {
+            console.warn("Failed to fetch copy item to recover userId:", error);
+          }
         }
-      }
 
-      // Only update content if it's different to avoid cursor jumps
-      if (item.content !== lastContentRef.current) {
-        setContent(item.content);
-        setCurrentFileName(item.fileName ?? null);
-        lastContentRef.current = item.content;
-      }
+        const cachedUser = enrichedItem.userId
+          ? workspaceUsersRef.current[enrichedItem.userId]
+          : undefined;
 
-      setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
-      setIsSaving(false);
-    });
+        if (!enrichedItem.user && enrichedItem.userId) {
+          if (cachedUser) {
+            enrichedItem = { ...enrichedItem, user: cachedUser };
+          } else if (session?.user?.id === enrichedItem.userId) {
+            enrichedItem = {
+              ...enrichedItem,
+              user: {
+                id: session.user.id,
+                name: session.user.name,
+                email: session.user.email ?? "",
+              },
+            };
+          } else {
+            try {
+              const response = await fetch(
+                `/api/workspaces/${enrichedItem.workspaceId ?? selectedWorkspaceIdRef.current}/members`,
+              );
+              if (response.ok) {
+                const data = await response.json();
+                const member = (data.users ?? []).find(
+                  (user: { id: string }) => user.id === enrichedItem.userId,
+                );
+                if (member) {
+                  enrichedItem = { ...enrichedItem, user: member };
+                  setWorkspaceUsers((prev) => ({
+                    ...prev,
+                    [member.id]: member,
+                  }));
+                }
+              }
+            } catch (error) {
+              console.warn("Failed to enrich socket item user:", error);
+            }
+          }
+        }
+
+        const isPersonal = !enrichedItem.workspaceId;
+        const isActiveWorkspace =
+          enrichedItem.workspaceId === selectedWorkspaceIdRef.current;
+        if (!(isPersonal || isActiveWorkspace)) {
+          return;
+        }
+
+        // Only add to history if content is not empty
+        if (enrichedItem.content.trim()) {
+          // Only add to history if it matches current search (or no search)
+          if (
+            !debouncedSearchRef.current ||
+            enrichedItem.content
+              .toLowerCase()
+              .includes(debouncedSearchRef.current.toLowerCase()) ||
+            enrichedItem.fileName
+              ?.toLowerCase()
+              .includes(debouncedSearchRef.current.toLowerCase())
+          ) {
+            setHistory((prev) => [
+              enrichedItem,
+              ...prev.filter((existing) => existing.id !== enrichedItem.id),
+            ]);
+          }
+        }
+
+        // Only update content if it's different to avoid cursor jumps
+        if (item.content !== lastContentRef.current) {
+          setContent(item.content);
+          setCurrentFileName(item.fileName ?? null);
+          lastContentRef.current = item.content;
+        }
+
+        setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
+        setIsSaving(false);
+      },
+    );
 
     socket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
       setIsConnected(false);
       currentJoinedWorkspaceIdRef.current = null;
       if (reason === "io server disconnect") {
@@ -1062,19 +1185,10 @@ export default function DashboardPage() {
 
     return () => {
       currentJoinedWorkspaceIdRef.current = null;
-      console.log("Cleaning up socket connection");
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated, socketUrl]);
-
-  useEffect(() => {
-    selectedWorkspaceIdRef.current = selectedWorkspaceId;
-  }, [selectedWorkspaceId]);
-
-  useEffect(() => {
-    debouncedSearchRef.current = debouncedSearch;
-  }, [debouncedSearch]);
+  }, [isAuthenticated, socketUrl, session]);
 
   useEffect(() => {
     selectedWorkspaceIdRef.current = selectedWorkspaceId;
@@ -1102,13 +1216,11 @@ export default function DashboardPage() {
   }, [selectedWorkspaceId, isConnected]);
 
   // Debounced Update Logic
-  const debouncedUpdate = useMemo(() => {
-    let timeout: NodeJS.Timeout;
+  const debouncedUpdate = useCallback(
+    (nextContent: string) => {
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
 
-    return (nextContent: string) => {
-      if (timeout) clearTimeout(timeout);
-
-      timeout = setTimeout(() => {
+      updateTimeoutRef.current = setTimeout(() => {
         const socket = socketRef.current;
 
         if (!socket?.connected) {
@@ -1137,8 +1249,9 @@ export default function DashboardPage() {
           },
         );
       }, 800);
-    };
-  }, [selectedWorkspaceId]);
+    },
+    [selectedWorkspaceId],
+  );
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const val = event.target.value;
@@ -1226,8 +1339,8 @@ export default function DashboardPage() {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
       formData.append("file", file);
-      if (selectedWorkspaceId) {
-        formData.append("workspaceId", selectedWorkspaceId);
+      if (selectedWorkspaceIdRef.current) {
+        formData.append("workspaceId", selectedWorkspaceIdRef.current);
       }
 
       xhr.open("POST", "/api/upload");
@@ -1280,7 +1393,13 @@ export default function DashboardPage() {
       const item = await uploadFileToServer(file);
       setHistory((prev) => [item, ...prev]);
       setContent(item.content);
-      setContentType(isImageContent(item.content) ? "image" : "text");
+      setContentType(
+        isImageContent(item.content)
+          ? "image"
+          : isVideoContent(item.content)
+            ? "video"
+            : "text",
+      );
       setLastSavedAt(new Date(item.createdAt).toLocaleTimeString());
     } catch (error) {
       setError(
@@ -1354,6 +1473,12 @@ export default function DashboardPage() {
     await navigator.clipboard.write([clipboardItem]);
   };
 
+  const createFileFromBlob = (blob: Blob, fallbackName = "clipboard-file") => {
+    const extension = blob.type.split("/")[1] || "bin";
+    const fileName = `${fallbackName}.${extension}`;
+    return new File([blob], fileName, { type: blob.type });
+  };
+
   const handleCopy = async (text: string, id?: string) => {
     if (id) {
       setCopyingIds((prev) => [...prev, id]);
@@ -1401,31 +1526,44 @@ export default function DashboardPage() {
     }
   };
 
-  const handlePasteEvent = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const imageItem = Array.from(event.clipboardData.items).find((item) =>
-      item.type.startsWith("image/"),
-    );
+  const handlePasteEvent = async (
+    event: ClipboardEvent<HTMLTextAreaElement>,
+  ) => {
+    const items = Array.from(event.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    const videoItem = items.find((item) => item.type.startsWith("video/"));
+    const fileItem = items.find((item) => item.kind === "file");
 
-    if (!imageItem) return;
+    const selectedItem = imageItem || videoItem || fileItem;
+    if (!selectedItem) return;
 
-    const file = imageItem.getAsFile();
+    const file = selectedItem.getAsFile();
     if (!file) return;
 
     event.preventDefault();
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setContent(dataUrl);
-      setContentType("image");
-      setCurrentFileSize(formatFileSize(getDataUrlSize(dataUrl)));
-      debouncedUpdate(dataUrl);
-      setError(null);
-      setPasted(true);
-      showToast("Pasted image from clipboard");
-      setTimeout(() => setPasted(false), 2000);
-    };
-    reader.readAsDataURL(file);
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setContent(dataUrl);
+        setContentType("image");
+        setCurrentFileSize(formatFileSize(getDataUrlSize(dataUrl)));
+        debouncedUpdate(dataUrl);
+        setError(null);
+        setPasted(true);
+        showToast("Pasted image from clipboard");
+        setTimeout(() => setPasted(false), 2000);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    await uploadFile(file);
+    setError(null);
+    setPasted(true);
+    showToast("Pasted file from clipboard");
+    setTimeout(() => setPasted(false), 2000);
   };
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -1470,6 +1608,15 @@ export default function DashboardPage() {
           const imageType = item.types.find((type: string) =>
             type.startsWith("image/"),
           );
+          const videoType = item.types.find((type: string) =>
+            type.startsWith("video/"),
+          );
+          const fileType = item.types.find(
+            (type: string) =>
+              !type.startsWith("image/") &&
+              !type.startsWith("video/") &&
+              type !== "text/plain",
+          );
 
           if (imageType) {
             const blob: Blob = await item.getType(imageType);
@@ -1480,6 +1627,28 @@ export default function DashboardPage() {
             setError(null);
             setPasted(true);
             showToast("Pasted from clipboard");
+            setTimeout(() => setPasted(false), 2000);
+            return;
+          }
+
+          if (videoType) {
+            const blob: Blob = await item.getType(videoType);
+            const file = createFileFromBlob(blob, "clipboard-video");
+            await uploadFile(file);
+            setError(null);
+            setPasted(true);
+            showToast("Pasted video from clipboard");
+            setTimeout(() => setPasted(false), 2000);
+            return;
+          }
+
+          if (fileType) {
+            const blob: Blob = await item.getType(fileType);
+            const file = createFileFromBlob(blob, "clipboard-file");
+            await uploadFile(file);
+            setError(null);
+            setPasted(true);
+            showToast("Pasted file from clipboard");
             setTimeout(() => setPasted(false), 2000);
             return;
           }
@@ -2156,6 +2325,7 @@ export default function DashboardPage() {
             getFileNameFromUrl={getFileNameFromUrl}
             getFileType={getFileType}
             isRemoteFile={isRemoteFile}
+            isVideoContent={isVideoContent}
           />
 
           <HistorySidebar

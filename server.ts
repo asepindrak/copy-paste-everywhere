@@ -88,7 +88,6 @@ io.use(async (socket, next) => {
     }
 
     if (!token?.sub) {
-      console.log("Socket Auth Failed: No valid token found in cookies");
       return next(new Error("Unauthorized"));
     }
 
@@ -104,7 +103,6 @@ io.on("connection", async (socket) => {
   const userId = socket.data.userId as string;
   const room = `user:${userId}`;
 
-  console.log(`Socket connected: ${socket.id} for user: ${userId}`);
   socket.join(room);
 
   socket.on("workspace:join", async (workspaceId: string) => {
@@ -115,14 +113,12 @@ io.on("connection", async (socket) => {
       return;
     }
 
-    console.log(`Socket ${socket.id} joining workspace:${workspaceId}`);
     socket.join(`workspace:${workspaceId}`);
   });
 
   socket.on("workspace:leave", async (workspaceId: string) => {
     if (!workspaceId) return;
 
-    console.log(`Socket ${socket.id} leaving workspace:${workspaceId}`);
     socket.leave(`workspace:${workspaceId}`);
   });
 
@@ -143,6 +139,9 @@ io.on("connection", async (socket) => {
             id: "temporary-empty",
             content: "",
             createdAt: new Date().toISOString(),
+            userId,
+            user: undefined,
+            workspaceId: payload.workspaceId ?? null,
           };
           io.to(room).emit("clipboard:updated", result);
           return callback({ item: result });
@@ -167,11 +166,20 @@ io.on("connection", async (socket) => {
             userId,
             workspaceId: allowedWorkspaceId ? payload.workspaceId : null,
           },
+          include: { user: true },
         });
 
         const result = {
           id: item.id,
           content: item.content,
+          fileName: item.fileName,
+          fileSize: item.fileSize,
+          userId: item.userId,
+          user: {
+            id: item.user.id,
+            name: item.user.name,
+            email: item.user.email,
+          },
           workspaceId: item.workspaceId,
           createdAt: item.createdAt.toISOString(),
         };
@@ -189,9 +197,7 @@ io.on("connection", async (socket) => {
     },
   );
 
-  socket.on("disconnect", (reason) => {
-    console.log(`Socket disconnected: ${socket.id}, reason: ${reason}`);
-  });
+  socket.on("disconnect", (reason) => {});
 });
 
 app.prepare().then(() => {

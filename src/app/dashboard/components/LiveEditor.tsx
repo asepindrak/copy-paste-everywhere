@@ -7,7 +7,7 @@ import type { CopyItem } from "../../../types/dashboard";
 
 interface LiveEditorProps {
   content: string;
-  contentType: "text" | "image";
+  contentType: "text" | "image" | "video";
   copied: boolean;
   pasted: boolean;
   isSaving: boolean;
@@ -33,6 +33,7 @@ interface LiveEditorProps {
   getFileNameFromUrl: (url: string) => string;
   getFileType: (value: string) => string | null;
   isRemoteFile: (value: string) => boolean;
+  isVideoContent: (value: string) => boolean;
 }
 
 export default function LiveEditor({
@@ -59,6 +60,7 @@ export default function LiveEditor({
   getFileNameFromUrl,
   getFileType,
   isRemoteFile,
+  isVideoContent,
 }: LiveEditorProps) {
   return (
     <main className="lg:col-span-2 space-y-6">
@@ -216,6 +218,26 @@ export default function LiveEditor({
                 Image detected. Use the Paste button to replace the image or
                 Clear to reset.
               </p>
+            </div>
+          ) : contentType === "video" && isVideoContent(content) ? (
+            <div className="flex min-h-[400px] w-full flex-col justify-center rounded-2xl border border-slate-800 bg-slate-950 p-8 text-center text-slate-300">
+              <video
+                controls
+                className="max-h-[340px] w-full rounded-2xl bg-black object-contain"
+              >
+                <source src={content} />
+                Your browser does not support the video tag.
+              </video>
+              <div className="mt-4 text-sm text-slate-400">
+                Video pasted successfully. Use the Paste button to replace it or
+                Clear to reset.
+              </div>
+              <button
+                onClick={() => downloadContent(content)}
+                className="mt-4 inline-flex items-center justify-center rounded-2xl border border-blue-500 bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+              >
+                Download Video
+              </button>
             </div>
           ) : isRemoteFile(content) ? (
             <div className="flex min-h-[400px] w-full flex-col justify-center rounded-2xl border border-slate-800 bg-slate-950 p-8 text-center text-slate-300">

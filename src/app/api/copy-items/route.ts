@@ -66,6 +66,23 @@ export async function GET(req: NextRequest) {
       return true;
     };
 
+    const transformCopyItem = (item: any) => ({
+      id: item.id,
+      content: item.content,
+      fileName: item.fileName,
+      fileSize: item.fileSize,
+      workspaceId: item.workspaceId,
+      userId: item.userId,
+      createdAt: item.createdAt.toISOString(),
+      user: item.user
+        ? {
+            id: item.user.id,
+            name: item.user.name,
+            email: item.user.email,
+          }
+        : undefined,
+    });
+
     if (search) {
       const allItems = cursor
         ? await prisma.copyItem.findMany({
@@ -73,11 +90,13 @@ export async function GET(req: NextRequest) {
             orderBy: { createdAt: "desc" },
             skip: 1,
             cursor: { id: cursor },
+            include: { user: true },
           })
         : await prisma.copyItem.findMany({
             where: baseWhere,
             orderBy: { createdAt: "desc" },
             take: 500,
+            include: { user: true },
           });
 
       const filteredItems = [];
@@ -108,7 +127,7 @@ export async function GET(req: NextRequest) {
       }
 
       return NextResponse.json({
-        items: filteredItems,
+        items: filteredItems.map(transformCopyItem),
         nextCursor,
       });
     }
@@ -119,6 +138,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: fetchLimit,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      include: { user: true },
     });
 
     const filteredItems = [];
@@ -136,7 +156,7 @@ export async function GET(req: NextRequest) {
         : null;
 
     return NextResponse.json({
-      items: filteredItems,
+      items: filteredItems.map(transformCopyItem),
       nextCursor,
     });
   } catch (error) {

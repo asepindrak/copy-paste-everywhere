@@ -47,6 +47,11 @@ export default function HistoryPreviewModal({
             <p className="text-sm text-slate-400">
               Preview a {isVideo ? "video" : "image"} from clipboard history.
             </p>
+            {item.user && (
+              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                {item.user.name || item.user.email}
+              </p>
+            )}
           </div>
           <button
             type="button"

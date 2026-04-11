@@ -114,6 +114,11 @@ export default function FileGalleryModal({
                           {item.fileName ?? getFileNameFromUrl(item.content)}
                         </p>
                         <p className="text-xs text-slate-500">
+                          {item.user
+                            ? item.user.name || item.user.email
+                            : "Unknown user"}
+                        </p>
+                        <p className="text-xs text-slate-500">
                           {fileType ?? "FILE"} ·{" "}
                           {item.fileSize != null
                             ? formatFileSize(item.fileSize)

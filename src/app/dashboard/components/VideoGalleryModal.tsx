@@ -104,6 +104,11 @@ export default function VideoGalleryModal({
                         {item.fileName ?? getFileNameFromUrl(item.content)}
                       </p>
                       <p className="text-xs text-slate-500">
+                        {item.user
+                          ? item.user.name || item.user.email
+                          : "Unknown user"}
+                      </p>
+                      <p className="text-xs text-slate-500">
                         VIDEO ·{" "}
                         {item.fileSize != null
                           ? formatFileSize(item.fileSize)
