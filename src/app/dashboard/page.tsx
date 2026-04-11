@@ -194,6 +194,7 @@ export default function DashboardPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
   const [pasted, setPasted] = useState(false);
+  const [cleared, setCleared] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -1994,8 +1995,13 @@ export default function DashboardPage() {
   const handleClear = () => {
     setContent("");
     setContentType("text");
+    setCurrentFileName(null);
+    setCurrentFileSize(null);
+    setLastSavedAt(null);
     lastContentRef.current = "";
-    debouncedUpdate("");
+    setCleared(true);
+    showToast("Editor cleared");
+    setTimeout(() => setCleared(false), 2000);
   };
 
   const handleDelete = async (id: string) => {
@@ -2140,25 +2146,32 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="border-t border-slate-800" />
-                  <div className="mt-3 flex w-full overflow-hidden rounded-2xl border border-slate-700 text-sm font-semibold">
+                  <div className="p-4 space-y-2">
                     <button
                       type="button"
-                      onClick={() => setIsClearAllModalOpen(true)}
-                      className="flex-1 inline-flex min-h-[38px] items-center justify-center gap-2 border-r border-slate-700 bg-red-600 px-3 py-2 text-white transition hover:bg-red-500"
+                      onClick={() => {
+                        setIsClearAllModalOpen(true);
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500 hover:text-white"
                       title="Clear personal clipboard"
                       aria-label="Clear personal clipboard"
                     >
-                      <FaTrash className="h-4 w-4" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 group-hover:bg-white/20">
+                        <FaTrash className="h-4 w-4" />
+                      </div>
                       Clear clipboard
                     </button>
                     <button
                       type="button"
                       onClick={() => signOut({ callbackUrl: "/login" })}
-                      className="flex-1 inline-flex min-h-[38px] items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-sky-500 px-3 py-2 text-white transition hover:from-blue-700 hover:to-sky-600"
+                      className="w-full flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
                       title="Logout"
                       aria-label="Logout"
                     >
-                      <FaSignOutAlt className="h-4 w-4" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                        <FaSignOutAlt className="h-4 w-4" />
+                      </div>
                       Logout
                     </button>
                   </div>
@@ -2342,68 +2355,16 @@ export default function DashboardPage() {
         )}
 
         {isClearAllModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-            <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    Clear personal clipboard
-                  </h2>
-                  <p className="text-sm text-slate-400">
-                    This will permanently delete all items from your personal
-                    clipboard.
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Workspace items are not affected.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsClearAllModalOpen(false);
-                    setClearAllConfirmation("");
-                  }}
-                  className="rounded-full border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
-                >
-                  Close
-                </button>
-              </div>
-              <div className="space-y-6 p-6">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
-                  <p className="text-sm text-slate-300">
-                    Type{" "}
-                    <span className="font-semibold text-white">clear all</span>{" "}
-                    to confirm.
-                  </p>
-                  <input
-                    type="text"
-                    value={clearAllConfirmation}
-                    onChange={(event) =>
-                      setClearAllConfirmation(event.target.value)
-                    }
-                    className="mt-3 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Type clear all to confirm"
-                  />
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm text-slate-400">
-                    Once confirmed, your personal clipboard data will be deleted
-                    immediately.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleClearAllPersonalClipboard}
-                    disabled={
-                      clearAllConfirmation !== "clear all" || isClearingAll
-                    }
-                    className="rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isClearingAll ? "Clearing..." : "Confirm Clear All"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ClearAllModal
+            clearAllConfirmation={clearAllConfirmation}
+            isClearingAll={isClearingAll}
+            onClose={() => {
+              setIsClearAllModalOpen(false);
+              setClearAllConfirmation("");
+            }}
+            onConfirmationChange={setClearAllConfirmation}
+            onConfirm={handleClearAllPersonalClipboard}
+          />
         )}
 
         <ImageGalleryModal
@@ -2458,7 +2419,10 @@ export default function DashboardPage() {
           getFileSize={getFileSize}
         />
         {previewImage !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95"
+            onClick={() => setPreviewImageIndex(null)}
+          >
             <div className="absolute inset-0" />
             <button
               type="button"
@@ -2468,7 +2432,10 @@ export default function DashboardPage() {
             >
               ×
             </button>
-            <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-slate-950">
+            <div
+              className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-slate-950"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="absolute left-4 top-1/2 z-20 -translate-y-1/2">
                 <button
                   type="button"
@@ -2631,6 +2598,7 @@ export default function DashboardPage() {
             contentType={contentType}
             copied={copied}
             pasted={pasted}
+            cleared={cleared}
             isSaving={isSaving}
             isUploading={isUploading}
             uploadProgress={uploadProgress}

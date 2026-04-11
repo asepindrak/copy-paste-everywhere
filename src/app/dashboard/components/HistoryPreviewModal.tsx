@@ -36,9 +36,15 @@ export default function HistoryPreviewModal({
   const isVideo = isVideoContent(item.content);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-4 py-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-4 py-6"
+      onClick={onClose}
+    >
       <div className="absolute inset-0" />
-      <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
+      <div
+        className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-white">

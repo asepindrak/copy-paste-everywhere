@@ -2,7 +2,13 @@
 
 import type { RefObject } from "react";
 import Image from "next/image";
-import { FaTimes, FaCopy, FaDownload, FaTrash } from "react-icons/fa";
+import {
+  FaTimes,
+  FaCopy,
+  FaDownload,
+  FaTrash,
+  FaFileImage,
+} from "react-icons/fa";
 import type { CopyItem } from "../../../types/dashboard";
 
 interface ImageGalleryModalProps {
@@ -64,8 +70,14 @@ export default function ImageGalleryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-      <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-white">Image Gallery</h2>
@@ -108,7 +120,10 @@ export default function ImageGalleryModal({
                   {(() => {
                     const fileType = getFileType(item.content);
                     return (
-                      <div className="mb-3 flex items-start gap-2">
+                      <div className="mb-3 flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600/10 text-blue-400">
+                          <FaFileImage className="h-5 w-5" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="truncate text-sm font-semibold text-white">
                             {item.fileName ?? getFileNameFromUrl(item.content)}
@@ -118,11 +133,11 @@ export default function ImageGalleryModal({
                               ? item.user.name || item.user.email
                               : "Unknown user"}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 uppercase tracking-wider">
                             {(fileType || "IMAGE") + " · "}
                             {item.fileSize != null
                               ? formatFileSize(item.fileSize)
-                              : (getFileSize(item.content) ?? "Unknown size")}
+                              : "Unknown size"}
                           </p>
                         </div>
                       </div>

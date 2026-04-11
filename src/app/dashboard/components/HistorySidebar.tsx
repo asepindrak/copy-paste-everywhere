@@ -2,7 +2,23 @@
 
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { FaImages, FaFileAlt, FaVideo, FaEye } from "react-icons/fa";
+import {
+  FaImages,
+  FaFileAlt,
+  FaVideo,
+  FaEye,
+  FaFilePdf,
+  FaFileWord,
+  FaFileExcel,
+  FaFilePowerpoint,
+  FaFileArchive,
+  FaFileCode,
+  FaFileImage,
+  FaFileVideo,
+  FaFileAudio,
+  FaFilePrescription,
+  FaFileCsv,
+} from "react-icons/fa";
 import type { RefObject } from "react";
 import type { CopyItem } from "../../../types/dashboard";
 
@@ -80,6 +96,50 @@ export default function HistorySidebar({
     (item.userId === session?.user?.id
       ? session.user.name || session.user.email
       : "Unknown user");
+
+  const getFileIcon = (content: string) => {
+    const type = getFileType(content);
+    if (!type) return <FaFileAlt className="h-4 w-4" />;
+
+    const upperType = type.toUpperCase();
+    if (["JPG", "JPEG", "PNG", "GIF", "WEBP", "SVG", "BMP"].includes(upperType))
+      return <FaFileImage className="h-4 w-4 text-blue-400" />;
+    if (["MP4", "WEBM", "OGG", "MOV", "AVI", "MKV", "M4V"].includes(upperType))
+      return <FaFileVideo className="h-4 w-4 text-purple-400" />;
+    if (["PDF"].includes(upperType))
+      return <FaFilePdf className="h-4 w-4 text-red-400" />;
+    if (["DOC", "DOCX"].includes(upperType))
+      return <FaFileWord className="h-4 w-4 text-blue-500" />;
+    if (["XLS", "XLSX"].includes(upperType))
+      return <FaFileExcel className="h-4 w-4 text-emerald-500" />;
+    if (["PPT", "PPTX"].includes(upperType))
+      return <FaFilePowerpoint className="h-4 w-4 text-orange-500" />;
+    if (["ZIP", "RAR", "7Z", "TAR", "GZ"].includes(upperType))
+      return <FaFileArchive className="h-4 w-4 text-yellow-500" />;
+    if (
+      [
+        "JS",
+        "TS",
+        "TSX",
+        "JSX",
+        "HTML",
+        "CSS",
+        "JSON",
+        "PY",
+        "GO",
+        "RS",
+      ].includes(upperType)
+    )
+      return <FaFileCode className="h-4 w-4 text-slate-400" />;
+    if (["MP3", "WAV", "FLAC", "AAC", "M4A"].includes(upperType))
+      return <FaFileAudio className="h-4 w-4 text-pink-400" />;
+    if (["CSV"].includes(upperType))
+      return <FaFileCsv className="h-4 w-4 text-emerald-600" />;
+    if (["TXT", "MD", "RTF"].includes(upperType))
+      return <FaFileAlt className="h-4 w-4 text-slate-300" />;
+
+    return <FaFileAlt className="h-4 w-4 text-slate-400" />;
+  };
 
   return (
     <aside className="space-y-6 flex flex-col h-[600px]">
@@ -399,40 +459,72 @@ export default function HistorySidebar({
                           className="flex aspect-video w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-900 transition hover:bg-slate-800"
                           onClick={() => setHistoryPreviewItem(item)}
                         >
-                          <FaVideo className="h-10 w-10 text-slate-600" />
+                          <FaVideo className="h-10 w-10 text-purple-400/50" />
                         </div>
                         {item.fileName && (
-                          <p className="mt-3 truncate text-sm text-slate-300">
-                            {item.fileName}
-                          </p>
+                          <div className="mt-3 flex items-center gap-2 px-1 overflow-hidden">
+                            {getFileIcon(item.content)}
+                            <p className="truncate text-sm text-slate-300">
+                              {item.fileName}
+                            </p>
+                          </div>
                         )}
                       </div>
                     ) : isImageContent(item.content) ? (
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2">
-                        <Image
-                          src={getImageSrc(item.content)}
-                          alt="History image"
-                          width={600}
-                          height={400}
-                          unoptimized
-                          className="max-h-56 w-full rounded-2xl object-contain"
-                        />
+                      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                        <div
+                          className="relative aspect-video w-full cursor-pointer overflow-hidden bg-slate-900 transition hover:opacity-90"
+                          onClick={() => setHistoryPreviewItem(item)}
+                        >
+                          <Image
+                            src={getImageSrc(item.content)}
+                            alt={item.fileName ?? "Clipboard image"}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
                         {item.fileName && (
-                          <p className="mt-3 truncate text-sm text-slate-300">
-                            {item.fileName}
-                          </p>
+                          <div className="flex items-center gap-2 p-3 overflow-hidden border-t border-slate-800/50">
+                            {getFileIcon(item.content)}
+                            <p className="truncate text-sm text-slate-300">
+                              {item.fileName}
+                            </p>
+                          </div>
                         )}
                       </div>
                     ) : isRemoteFile(item.content) ? (
-                      <p className="text-sm text-slate-300 truncate break-words leading-relaxed">
-                        {item.fileName ?? getFileNameFromUrl(item.content)}
-                      </p>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:bg-slate-900/80">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600/10 text-blue-400">
+                            {getFileIcon(item.content)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-200">
+                              {item.fileName ??
+                                getFileNameFromUrl(item.content)}
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              {getFileType(item.content) ?? "FILE"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     ) : (
-                      <p className="text-sm text-slate-300 line-clamp-3 break-words leading-relaxed">
-                        {item.content || (
-                          <span className="italic text-slate-600">(Empty)</span>
-                        )}
-                      </p>
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-slate-500">
+                            <FaFileAlt className="h-4 w-4" />
+                          </div>
+                          <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+                            {item.content || (
+                              <span className="italic text-slate-600">
+                                (Empty)
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     )}
                     {(getFileType(item.content) ||
                       item.fileSize != null ||

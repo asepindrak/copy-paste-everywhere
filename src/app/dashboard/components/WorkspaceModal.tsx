@@ -54,8 +54,14 @@ export default function WorkspaceModal({
   acceptingInviteId,
 }: WorkspaceModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-      <div className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-white">

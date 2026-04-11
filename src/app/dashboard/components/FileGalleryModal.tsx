@@ -1,7 +1,23 @@
 "use client";
 
 import type { RefObject } from "react";
-import { FaTimes, FaCopy, FaDownload, FaTrash } from "react-icons/fa";
+import {
+  FaTimes,
+  FaCopy,
+  FaDownload,
+  FaTrash,
+  FaFilePdf,
+  FaFileWord,
+  FaFileExcel,
+  FaFilePowerpoint,
+  FaFileArchive,
+  FaFileCode,
+  FaFileImage,
+  FaFileVideo,
+  FaFileAudio,
+  FaFileCsv,
+  FaFileAlt,
+} from "react-icons/fa";
 import type { CopyItem } from "../../../types/dashboard";
 
 interface FileGalleryModalProps {
@@ -54,11 +70,59 @@ export default function FileGalleryModal({
   getFileType,
   getFileSize,
 }: FileGalleryModalProps) {
+  const getFileIcon = (content: string) => {
+    const type = getFileType(content);
+    if (!type) return <FaFileAlt className="h-5 w-5" />;
+
+    const upperType = type.toUpperCase();
+    if (["JPG", "JPEG", "PNG", "GIF", "WEBP", "SVG", "BMP"].includes(upperType))
+      return <FaFileImage className="h-5 w-5 text-blue-400" />;
+    if (["MP4", "WEBM", "OGG", "MOV", "AVI", "MKV", "M4V"].includes(upperType))
+      return <FaFileVideo className="h-5 w-5 text-purple-400" />;
+    if (["PDF"].includes(upperType))
+      return <FaFilePdf className="h-5 w-5 text-red-400" />;
+    if (["DOC", "DOCX"].includes(upperType))
+      return <FaFileWord className="h-5 w-5 text-blue-500" />;
+    if (["XLS", "XLSX"].includes(upperType))
+      return <FaFileExcel className="h-5 w-5 text-emerald-500" />;
+    if (["PPT", "PPTX"].includes(upperType))
+      return <FaFilePowerpoint className="h-5 w-5 text-orange-500" />;
+    if (["ZIP", "RAR", "7Z", "TAR", "GZ"].includes(upperType))
+      return <FaFileArchive className="h-5 w-5 text-yellow-500" />;
+    if (
+      [
+        "JS",
+        "TS",
+        "TSX",
+        "JSX",
+        "HTML",
+        "CSS",
+        "JSON",
+        "PY",
+        "GO",
+        "RS",
+      ].includes(upperType)
+    )
+      return <FaFileCode className="h-5 w-5 text-slate-400" />;
+    if (["MP3", "WAV", "FLAC", "AAC", "M4A"].includes(upperType))
+      return <FaFileAudio className="h-5 w-5 text-pink-400" />;
+    if (["CSV"].includes(upperType))
+      return <FaFileCsv className="h-5 w-5 text-emerald-600" />;
+
+    return <FaFileAlt className="h-5 w-5 text-slate-400" />;
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-      <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-white">File Gallery</h2>
@@ -106,9 +170,12 @@ export default function FileGalleryModal({
                 return (
                   <div
                     key={`${item.id}-${index}`}
-                    className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
+                    className="rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:bg-slate-900/50"
                   >
-                    <div className="mb-3 flex items-start gap-2">
+                    <div className="mb-3 flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-400">
+                        {getFileIcon(item.content)}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="truncate text-sm font-semibold text-white">
                           {item.fileName ?? getFileNameFromUrl(item.content)}
