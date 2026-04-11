@@ -8,7 +8,7 @@
   <img src="copy-paste-everywhere.png" alt="Copy Paste Everywhere Preview" width="100%" style="max-width: 920px;" />
 </p>
 
-**Copy Paste Everywhere** is a lightweight, private, and real-time clipboard synchronization tool. It allows you to sync text and images across all your devices instantly using WebSockets.
+**Copy Paste Everywhere** is a lightweight, private, and real-time clipboard synchronization tool. It allows you to sync text, images, and videos across all your devices instantly using WebSockets.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
 ![Socket.io](https://img.shields.io/badge/Socket.io-4.8-blue?style=flat-square&logo=socket.io)
@@ -21,10 +21,11 @@
 - **Private & Secure**: Built-in authentication with NextAuth.js. Each user has their own private clipboard history.
 - **Live Editor**: A simple, intuitive interface to write or paste text.
 - **Image Gallery**: Browse and preview copied images, then copy, download, or delete them from a dedicated gallery modal.
+- **Video Support**: Preview and play copied videos, with download and history tracking for video clipboard items.
 - **File Gallery**: Browse copied files with search, metadata badges, and one-click download/delete actions.
-- **Image & File Support**: Paste images directly or drag & drop files into the dashboard for instant clipboard syncing.
+- **Image, Video & File Support**: Paste images/videos directly or drag & drop files into the dashboard for instant clipboard syncing.
 - **S3-compatible Storage**: Optional file upload support for AWS S3 or S3-compatible endpoints, with backward compatibility for existing database image items.
-- **Downloadable Items**: Download uploaded files directly from the dashboard.
+- **Downloadable Items**: Download uploaded files and videos directly from the dashboard.
 - **File Metadata**: File-type and file-size badges appear for uploaded files.
 - **History Tracking**: Keep track of your previous clipboard items.
 - **Workspace Collaboration**: Create workspaces, invite teammates, and sync clipboard items only within active shared workspaces.

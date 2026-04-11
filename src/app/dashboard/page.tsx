@@ -1594,8 +1594,8 @@ export default function DashboardPage() {
                 </h1>
                 <p className="max-w-2xl text-lg text-slate-400">
                   Synchronize clipboard across devices privately and in
-                  real-time. Copy/paste text or images, and drag & drop an image
-                  directly into the editor.
+                  real-time. Copy/paste text, images, or videos, and drag & drop
+                  an image or video directly into the editor.
                 </p>
                 <div className="text-sm text-slate-500">
                   App version {appVersion}

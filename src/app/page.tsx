@@ -39,11 +39,11 @@ export default function Home() {
               </div>
             </div>
             <h1 className="mt-6 text-5xl font-extrabold tracking-tight text-transparent bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500 bg-clip-text sm:text-5xl animated-gradient-text">
-              Sync your clipboard across text, images, and files.
+              Sync your clipboard across text, images, videos, and files.
             </h1>
             <p className="mt-6 max-w-2xl text-xl font-semibold text-slate-300">
-              Sync text, images, and files across devices in real time. Browse
-              your clipboard history, preview images, download files, and
+              Sync text, images, videos, and files across devices in real time.
+              Browse your clipboard history, preview media, download files, and
               collaborate in shared workspaces.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -81,8 +81,8 @@ export default function Home() {
               </div>
               <div className="space-y-5 p-5">
                 <p className="text-sm text-slate-400 max-w-2xl">
-                  Text, images, or files are sent instantly and preserved in
-                  your history.
+                  Text, images, videos, or files are sent instantly and
+                  preserved in your history.
                 </p>
                 <div className="space-y-3 border-t border-slate-800/60 pt-4">
                   <div className="border-b border-slate-800/60 pb-4 last:border-b-0">
@@ -90,7 +90,8 @@ export default function Home() {
                       Editor
                     </p>
                     <p className="mt-2 text-sm text-slate-300">
-                      Write or paste text, then sync immediately.
+                      Write or paste text, images, or videos, then sync
+                      immediately.
                     </p>
                   </div>
                   <div className="border-b border-slate-800/60 pb-4 last:border-b-0">
@@ -100,6 +101,15 @@ export default function Home() {
                     <p className="mt-2 text-sm text-slate-300">
                       Browse copied images, preview full-size, and copy/download
                       with one click.
+                    </p>
+                  </div>
+                  <div className="border-b border-slate-800/60 pb-4 last:border-b-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Video Support
+                    </p>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Preview copied videos, play them inline, and save or
+                      download media from your clipboard history.
                     </p>
                   </div>
                   <div className="pb-4">
@@ -125,15 +135,18 @@ export default function Home() {
               </h3>
               <ul className="mt-6 space-y-4 text-sm text-slate-300">
                 <li>
-                  • Copy and paste text, images, or files in one unified
+                  • Copy and paste text, images, videos, or files in one unified
                   clipboard.
                 </li>
-                <li>• Drag & drop files to upload and sync instantly.</li>
                 <li>
-                  • Browse clipboard history with search and preview support.
+                  • Drag & drop files and videos to upload and sync instantly.
                 </li>
                 <li>
-                  • Download shared files and images directly from the
+                  • Browse clipboard history with search and media preview
+                  support.
+                </li>
+                <li>
+                  • Download shared files, images, and videos directly from the
                   dashboard.
                 </li>
                 <li>
@@ -205,6 +218,17 @@ export default function Home() {
                   <p className="mt-3 text-sm text-slate-300">
                     Search copied files, review metadata, and download files
                     from your clipboard history.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl gradient-border animate-border">
+                <div className="rounded-xl bg-slate-950 p-6">
+                  <h4 className="text-base font-semibold text-white">
+                    Video Gallery
+                  </h4>
+                  <p className="mt-3 text-sm text-slate-300">
+                    Play and preview copied videos, then download or save them
+                    directly from your clipboard history.
                   </p>
                 </div>
               </div>
