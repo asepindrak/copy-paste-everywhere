@@ -1,6 +1,6 @@
 {
   "name": "copy-paste-everywhere",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Private real-time clipboard sync across all devices — text, images, files, and drag & drop.",
   "keywords": [
     "clipboard",
