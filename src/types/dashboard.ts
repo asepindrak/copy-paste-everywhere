@@ -1,6 +1,7 @@
 export interface CopyItem {
   id: string;
   content: string;
+  title?: string | null;
   fileName?: string | null;
   fileSize?: number | null;
   workspaceId?: string | null;

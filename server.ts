@@ -1,6 +1,6 @@
 import "dotenv/config";
 process.env.PRISMA_CLIENT_ENGINE_TYPE = "library";
-import http from "http";
+import * as http from "http";
 import { parse } from "url";
 import next from "next";
 import { Server } from "socket.io";
@@ -60,7 +60,10 @@ const io = new Server(server, {
 
 io.use(async (socket, next) => {
   try {
-    const req = socket.request as any;
+    const req = socket.request as unknown as {
+      headers?: { cookie?: string };
+      cookies?: Record<string, string | undefined>;
+    };
     const cookieHeader = req.headers?.cookie ?? "";
     const cookies = cookie.parse(cookieHeader);
     req.cookies = cookies;
@@ -80,7 +83,7 @@ io.use(async (socket, next) => {
     let token = null;
     for (const cookieName of cookieNames) {
       token = await getToken({
-        req,
+        req: req as any,
         secret,
         secureCookie: cookieName.startsWith("__Secure-"),
         cookieName,
@@ -220,6 +223,7 @@ io.on("connection", async (socket) => {
           const result = {
             id: "temporary-empty",
             content: "",
+            title: null,
             createdAt: new Date().toISOString(),
             userId,
             user: undefined,
@@ -259,6 +263,7 @@ io.on("connection", async (socket) => {
         const result = {
           id: item.id,
           content: item.content,
+          title: (item as any).title ?? null,
           fileName: item.fileName,
           fileSize: item.fileSize,
           userId: item.userId,
@@ -288,14 +293,12 @@ io.on("connection", async (socket) => {
   socket.on(
     "clipboard:uploaded",
     async (
-      payload: { item: any; workspaceId?: string },
+      payload: { item: Record<string, unknown>; workspaceId?: string },
       callback?: (ack: ClipboardUpdateAck) => void,
     ) => {
-      if (
-        !payload ||
-        !payload.item ||
-        typeof payload.item.content !== "string"
-      ) {
+      const item = payload.item as Record<string, unknown>;
+
+      if (!payload || !item || typeof item.content !== "string") {
         return callback?.({ error: "Invalid upload payload." });
       }
 
@@ -303,7 +306,8 @@ io.on("connection", async (socket) => {
         console.log(
           `Clipboard uploaded from ${userId}, workspace: ${payload.workspaceId || "none"}`,
         );
-        const workspaceId = payload.workspaceId || payload.item.workspaceId;
+        const workspaceId =
+          payload.workspaceId || (item.workspaceId as string | undefined);
         const allowedWorkspace = workspaceId
           ? await getWorkspaceByIdIfMember(workspaceId, userId)
           : null;
@@ -313,10 +317,14 @@ io.on("connection", async (socket) => {
         }
 
         const result = {
-          ...payload.item,
-          workspaceId: allowedWorkspace ? workspaceId : null,
+          id: item.id as string,
+          content: item.content as string,
+          title: (item.title as string | null) ?? null,
+          fileName: item.fileName as string | null,
+          fileSize: item.fileSize as number | null,
           userId,
-          createdAt: payload.item.createdAt ?? new Date().toISOString(),
+          workspaceId: allowedWorkspace ? workspaceId : null,
+          createdAt: (item.createdAt as string) ?? new Date().toISOString(),
         };
 
         const targetRoom = allowedWorkspace ? `workspace:${workspaceId}` : room;
@@ -331,7 +339,7 @@ io.on("connection", async (socket) => {
     },
   );
 
-  socket.on("disconnect", (reason) => {});
+  socket.on("disconnect", () => {});
 });
 
 app.prepare().then(() => {

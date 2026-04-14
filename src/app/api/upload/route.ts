@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     const result = {
       id: item.id,
       content: item.content,
+      title: item.title ?? null,
       fileName: item.fileName,
       fileSize: item.fileSize,
       userId: item.userId,

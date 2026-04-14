@@ -66,22 +66,29 @@ export async function GET(req: NextRequest) {
       return true;
     };
 
-    const transformCopyItem = (item: any) => ({
-      id: item.id,
-      content: item.content,
-      fileName: item.fileName,
-      fileSize: item.fileSize,
-      workspaceId: item.workspaceId,
-      userId: item.userId,
-      createdAt: item.createdAt.toISOString(),
-      user: item.user
-        ? {
-            id: item.user.id,
-            name: item.user.name,
-            email: item.user.email,
-          }
-        : undefined,
-    });
+    const transformCopyItem = (item: Record<string, unknown>) => {
+      const user = item.user as
+        | { id: string; name?: string | null; email: string }
+        | undefined;
+
+      return {
+        id: item.id as string,
+        content: item.content as string,
+        title: (item.title as string) ?? null,
+        fileName: item.fileName as string | null,
+        fileSize: item.fileSize as number | null,
+        workspaceId: item.workspaceId as string | null,
+        userId: item.userId as string,
+        createdAt: (item.createdAt as Date).toISOString(),
+        user: user
+          ? {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+            }
+          : undefined,
+      };
+    };
 
     if (search) {
       const allItems = cursor
@@ -112,8 +119,9 @@ export async function GET(req: NextRequest) {
         const fileNameMatches = item.fileName
           ?.toLowerCase()
           .includes(searchLower);
+        const titleMatches = item.title?.toLowerCase().includes(searchLower);
 
-        if (contentMatches || fileNameMatches) {
+        if (contentMatches || fileNameMatches || titleMatches) {
           filteredItems.push(item);
         }
 

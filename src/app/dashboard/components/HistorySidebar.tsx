@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import { useSession } from "next-auth/react";
+import { useState } from "react";
 import {
   FaImages,
   FaFileAlt,
   FaVideo,
   FaEye,
+  FaEdit,
   FaFilePdf,
   FaFileWord,
   FaFileExcel,
@@ -16,7 +18,6 @@ import {
   FaFileImage,
   FaFileVideo,
   FaFileAudio,
-  FaFilePrescription,
   FaFileCsv,
 } from "react-icons/fa";
 import type { RefObject } from "react";
@@ -36,6 +37,8 @@ interface HistorySidebarProps {
     fileName?: string | null,
     itemId?: string,
   ) => Promise<void>;
+  onUpdateTitle: (id: string, title: string) => Promise<void>;
+  updatingTitleIds: string[];
   setHistoryPreviewItem: (item: CopyItem | null) => void;
   isLoadingMore: boolean;
   hasMore: boolean;
@@ -64,6 +67,8 @@ export default function HistorySidebar({
   onCopy,
   onDelete,
   onDownload,
+  onUpdateTitle,
+  updatingTitleIds,
   setHistoryPreviewItem,
   isLoadingMore,
   hasMore,
@@ -90,12 +95,31 @@ export default function HistorySidebar({
     return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
   };
 
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState("");
+
   const getUserLabel = (item: CopyItem) =>
     item.user?.name ||
     item.user?.email ||
     (item.userId === session?.user?.id
       ? session.user.name || session.user.email
       : "Unknown user");
+
+  const startEditingTitle = (item: CopyItem) => {
+    setEditingTitleId(item.id);
+    setEditingTitleValue(item.title ?? "");
+  };
+
+  const cancelEditingTitle = () => {
+    setEditingTitleId(null);
+    setEditingTitleValue("");
+  };
+
+  const saveTitle = async (item: CopyItem) => {
+    await onUpdateTitle(item.id, editingTitleValue);
+    setEditingTitleId(null);
+    setEditingTitleValue("");
+  };
 
   const getFileIcon = (content: string) => {
     const type = getFileType(content);
@@ -452,6 +476,54 @@ export default function HistorySidebar({
                           )}
                         </button>
                       </div>
+                    </div>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      {editingTitleId === item.id ? (
+                        <div className="flex flex-1 flex-col gap-2">
+                          <input
+                            type="text"
+                            value={editingTitleValue}
+                            onChange={(e) =>
+                              setEditingTitleValue(e.target.value)
+                            }
+                            placeholder="Enter title..."
+                            className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-blue-500/50"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveTitle(item)}
+                              disabled={updatingTitleIds.includes(item.id)}
+                              className="rounded-2xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {updatingTitleIds.includes(item.id)
+                                ? "Saving..."
+                                : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditingTitle}
+                              className="rounded-2xl border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-1 items-center justify-between gap-3">
+                          <p className="truncate text-sm font-semibold text-slate-100">
+                            {item.title?.trim() || "Untitled"}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => startEditingTitle(item)}
+                            className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-800 text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                            title="Edit title"
+                          >
+                            <FaEdit className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {isVideoContent(item.content) ? (
                       <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2">

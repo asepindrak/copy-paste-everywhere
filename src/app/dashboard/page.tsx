@@ -294,6 +294,7 @@ export default function DashboardPage() {
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [copyingIds, setCopyingIds] = useState<string[]>([]);
   const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
+  const [updatingTitleIds, setUpdatingTitleIds] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   type WorkspaceOption = {
@@ -1278,6 +1279,9 @@ export default function DashboardPage() {
               .includes(debouncedSearchRef.current.toLowerCase()) ||
             enrichedItem.fileName
               ?.toLowerCase()
+              .includes(debouncedSearchRef.current.toLowerCase()) ||
+            enrichedItem.title
+              ?.toLowerCase()
               .includes(debouncedSearchRef.current.toLowerCase())
           ) {
             setHistory((prev) => [
@@ -1691,6 +1695,44 @@ export default function DashboardPage() {
       if (id) {
         setCopyingIds((prev) => prev.filter((copyId) => copyId !== id));
       }
+    }
+  };
+
+  const handleUpdateTitle = async (id: string, title: string) => {
+    setUpdatingTitleIds((prev) => [...prev, id]);
+
+    try {
+      const response = await fetch(`/api/copy-items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim() || null }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data?.error || "Failed to update title.");
+      }
+
+      const data = await response.json();
+      const updatedItem = data.item as CopyItem;
+
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, title: updatedItem.title } : item,
+        ),
+      );
+
+      setHistoryPreviewItem((prev) =>
+        prev?.id === id ? { ...prev, title: updatedItem.title } : prev,
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update title. Please try again.",
+      );
+    } finally {
+      setUpdatingTitleIds((prev) => prev.filter((updateId) => updateId !== id));
     }
   };
 
@@ -2640,6 +2682,8 @@ export default function DashboardPage() {
             copyingIds={copyingIds}
             downloadingIds={downloadingIds}
             deletingIds={deletingIds}
+            updatingTitleIds={updatingTitleIds}
+            onUpdateTitle={handleUpdateTitle}
             isImageContent={isImageContent}
             isVideoContent={isVideoContent}
             isRemoteFile={isRemoteFile}

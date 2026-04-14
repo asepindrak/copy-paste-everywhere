@@ -50,6 +50,9 @@ export default function HistoryPreviewModal({
             <h2 className="text-lg font-semibold text-white">
               Preview {isVideo ? "video" : "image"}
             </h2>
+            {item.title ? (
+              <p className="mt-1 text-sm text-slate-300">{item.title}</p>
+            ) : null}
             <p className="text-sm text-slate-400">
               Preview a {isVideo ? "video" : "image"} from clipboard history.
             </p>
