@@ -11,6 +11,10 @@ type BeforeInstallPromptEvent = Event & {
   }>;
 };
 
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean;
+};
+
 export default function PWAInstallButton() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -38,7 +42,7 @@ export default function PWAInstallButton() {
     const handleDisplayModeChange = () => {
       if (
         window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as any).standalone === true
+        (window.navigator as NavigatorWithStandalone).standalone === true
       ) {
         setIsInstalled(true);
       }
@@ -83,7 +87,7 @@ export default function PWAInstallButton() {
       type="button"
       onClick={handleInstallClick}
       aria-label="Install Copy Paste Everywhere app"
-      className="inline-flex items-center gap-2 rounded-2xl border border-blue-500 bg-gradient-to-r from-sky-500/15 via-blue-500/10 to-blue-600/15 px-2.5 py-2 text-xs font-semibold text-white shadow-[0_18px_50px_-30px_rgba(59,130,246,0.9)] transition duration-200 hover:-translate-y-0.5 hover:bg-gradient-to-r hover:from-sky-500/25 hover:via-blue-500/20 hover:to-blue-600/25 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 sm:gap-2.5 sm:px-4 sm:py-2.5 sm:text-sm"
+      className="inline-flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-900/70 px-2.5 py-2 text-xs font-semibold text-slate-200 shadow-[0_20px_52px_-38px_rgba(15,23,42,0.5)] transition duration-200 hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2 focus:ring-offset-slate-950 sm:gap-2.5 sm:px-4 sm:py-2.5 sm:text-sm"
     >
       <FaCloudDownloadAlt className="h-4 w-4" />
       <span className="hidden sm:inline">Install app</span>

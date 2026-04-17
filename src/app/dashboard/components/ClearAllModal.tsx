@@ -19,14 +19,14 @@ export default function ClearAllModal({
 }: ClearAllModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        className="w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-white">
               Clear personal clipboard
@@ -42,13 +42,13 @@ export default function ClearAllModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
+            className="rounded-full border border-gray-700 bg-black px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
           >
             <FaTimes className="h-4 w-4" />
           </button>
         </div>
         <div className="space-y-6 p-6">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+          <div className="rounded-2xl border border-gray-800 bg-black/80 p-5">
             <p className="text-sm text-slate-300">
               Type <span className="font-semibold text-white">clear all</span>{" "}
               to confirm.
@@ -57,7 +57,7 @@ export default function ClearAllModal({
               type="text"
               value={clearAllConfirmation}
               onChange={(event) => onConfirmationChange(event.target.value)}
-              className="mt-3 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="mt-3 w-full rounded-2xl border border-gray-800 bg-gray-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               placeholder="Type clear all to confirm"
             />
           </div>

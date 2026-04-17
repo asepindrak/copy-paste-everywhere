@@ -71,14 +71,14 @@ export default function ImageGalleryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-5xl max-h-[95vh] overflow-hidden rounded-xl sm:rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col"
+        className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-slate-700/80 bg-[#0b121c] shadow-[0_28px_80px_-42px_rgba(0,0,0,0.95)] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-2 sm:gap-4 border-b border-slate-800 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <div className="flex items-start justify-between gap-2 sm:gap-4 border-b border-gray-800 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <div className="min-w-0">
             <h2 className="text-base sm:text-lg font-semibold text-white">
               Image Gallery
@@ -90,27 +90,27 @@ export default function ImageGalleryModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white flex-shrink-0"
+            className="flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-gray-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white flex-shrink-0"
             aria-label="Close image gallery"
           >
             <FaTimes className="h-3 sm:h-4 w-3 sm:h-4" />
           </button>
         </div>
 
-        <div className="border-b border-slate-800 bg-slate-950/80 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <div className="border-b border-gray-700/30 bg-slate-950/70 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <input
             type="text"
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search images..."
-            className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 text-xs sm:text-sm text-slate-200 outline-none transition focus:border-blue-500/50 focus:ring-blue-500/10"
+            className="w-full rounded-2xl border border-gray-800 bg-black px-3 sm:px-4 py-2 text-xs sm:text-sm text-slate-200 outline-none transition focus:border-blue-500/50 focus:ring-blue-500/10"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="grid gap-3 sm:gap-4 p-3 sm:p-6 sm:grid-cols-2 xl:grid-cols-3">
             {items.length === 0 ? (
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-8 text-center text-slate-400 col-span-full">
+              <div className="rounded-2xl border border-gray-800 bg-black/80 p-8 text-center text-slate-400 col-span-full">
                 No images match your search.
               </div>
             ) : (
@@ -118,7 +118,7 @@ export default function ImageGalleryModal({
                 {items.map((item, index) => (
                   <div
                     key={`${item.id}-${index}`}
-                    className="rounded-xl sm:rounded-2xl border border-slate-800 bg-slate-950 p-2 sm:p-4 w-full overflow-hidden"
+                    className="rounded-xl sm:rounded-2xl border border-gray-800 bg-black p-2 sm:p-4 w-full overflow-hidden"
                   >
                     {(() => {
                       const fileType = getFileType(item.content);
@@ -147,7 +147,7 @@ export default function ImageGalleryModal({
                         </div>
                       );
                     })()}
-                    <div className="overflow-hidden rounded-lg sm:rounded-2xl border border-slate-800 bg-slate-900 w-full">
+                    <div className="overflow-hidden rounded-lg sm:rounded-2xl border border-gray-800 bg-gray-900 w-full">
                       <button
                         type="button"
                         onClick={() => onPreviewImageIndexChange(index)}
@@ -212,7 +212,7 @@ export default function ImageGalleryModal({
                           )
                         }
                         disabled={downloadingIds.includes(item.id)}
-                        className={`inline-flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-200 transition hover:bg-slate-900 ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                        className={`inline-flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-gray-800 bg-black text-slate-200 transition hover:bg-gray-900 ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
                         title={
                           downloadingIds.includes(item.id)
                             ? "Downloading..."
@@ -249,7 +249,7 @@ export default function ImageGalleryModal({
                         type="button"
                         onClick={() => onDelete(item.id)}
                         disabled={deletingIds.includes(item.id)}
-                        className={`inline-flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-slate-300 transition hover:bg-red-600/10 hover:text-white ${deletingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                        className={`inline-flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-gray-800 bg-black text-slate-300 transition hover:bg-red-600/10 hover:text-white ${deletingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
                         title={
                           deletingIds.includes(item.id)
                             ? "Deleting..."
@@ -292,7 +292,7 @@ export default function ImageGalleryModal({
           <div ref={loadMoreRef} className="py-3 sm:py-4 flex justify-center">
             {isLoadingMore ? (
               <div className="flex items-center gap-2 text-slate-400 text-xs sm:text-sm">
-                <div className="h-4 w-4 rounded-full border-2 border-slate-700 border-t-blue-500 animate-spin" />
+                <div className="h-4 w-4 rounded-full border-2 border-gray-700 border-t-blue-500 animate-spin" />
                 Loading more images...
               </div>
             ) : hasMore ? (

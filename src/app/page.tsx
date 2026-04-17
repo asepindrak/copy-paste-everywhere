@@ -17,7 +17,7 @@ export default function Home() {
   }, [status, router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-black text-gray-100">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <header className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <div>
@@ -30,18 +30,18 @@ export default function Home() {
                 className="rounded-xl"
               />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold text-cyan-500 sm:text-4xl">
+                <span className="text-3xl font-extrabold text-white sm:text-4xl">
                   Copy Paste
                 </span>
-                <span className="text-lg font-semibold text-blue-500 sm:text-xl">
+                <span className="text-lg font-semibold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent sm:text-xl">
                   Everywhere
                 </span>
               </div>
             </div>
-            <h1 className="mt-6 text-5xl font-extrabold tracking-tight text-transparent bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500 bg-clip-text sm:text-5xl animated-gradient-text">
+            <h1 className="mt-6 text-5xl font-black tracking-tight text-transparent bg-gradient-to-r from-white via-blue-200 to-indigo-300 bg-clip-text sm:text-5xl">
               Sync your clipboard across text, images, videos, and files.
             </h1>
-            <p className="mt-6 max-w-2xl text-xl font-semibold text-slate-300">
+            <p className="mt-6 max-w-2xl text-xl font-semibold text-gray-300">
               Sync text, images, videos, and files across devices in real time.
               Browse your clipboard history, preview media, download files, and
               collaborate in shared workspaces.
@@ -49,42 +49,40 @@ export default function Home() {
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
+                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3 text-sm font-semibold text-white transition hover:from-blue-500 hover:to-indigo-500 shadow-lg hover:shadow-blue-500/50"
               >
                 Get started
               </Link>
               <Link
                 href="/signup"
-                className="inline-flex rounded-2xl gradient-border animate-border"
+                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 px-8 py-3 text-sm font-semibold text-white border border-gray-700 transition hover:from-gray-700 hover:to-gray-800"
               >
-                <span className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800">
-                  Create free account
-                </span>
+                Create free account
               </Link>
             </div>
           </div>
 
-          <div className="rounded-2xl gradient-border animate-border shadow-sm shadow-cyan-500/10 backdrop-blur-sm">
-            <div className="rounded-2xl bg-slate-950 p-6">
+          <div className="rounded-2xl gradient-border animate-border shadow-lg shadow-blue-500/10 backdrop-blur-sm">
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900/40 to-blue-900/20 p-6">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                  <p className="text-xs uppercase tracking-[0.25em] text-gray-500">
                     Live preview
                   </p>
                   <h2 className="mt-2 text-lg font-semibold text-white">
                     Real-time Clipboard
                   </h2>
                 </div>
-                <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                <span className="rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 px-3 py-1 text-xs font-semibold text-blue-300 border border-blue-500/30">
                   Realtime
                 </span>
               </div>
               <div className="space-y-5 p-5">
-                <p className="text-sm text-slate-400 max-w-2xl">
+                <p className="text-sm text-gray-400 max-w-2xl">
                   Text, images, videos, or files are sent instantly and
                   preserved in your history.
                 </p>
-                <div className="space-y-3 border-t border-slate-800/60 pt-4">
+                <div className="space-y-3 border-t border-gray-700/40 pt-4">
                   <div className="border-b border-slate-800/60 pb-4 last:border-b-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Editor
@@ -129,7 +127,7 @@ export default function Home() {
 
         <section className="mt-16 grid gap-6 lg:grid-cols-3 items-stretch">
           <div className="rounded-2xl gradient-border animate-border h-full">
-            <div className="rounded-2xl bg-slate-950 p-6 h-full flex flex-col">
+            <div className="rounded-2xl bg-black p-6 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-white">
                 What you can do
               </h3>
@@ -157,7 +155,7 @@ export default function Home() {
             </div>
           </div>
           <div className="rounded-2xl gradient-border animate-border h-full">
-            <div className="rounded-2xl bg-slate-950 p-6 h-full flex flex-col">
+            <div className="rounded-2xl bg-black p-6 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-white">
                 Built for teams
               </h3>
@@ -169,7 +167,7 @@ export default function Home() {
             </div>
           </div>
           <div className="rounded-2xl gradient-border animate-border h-full">
-            <div className="rounded-2xl bg-slate-950 p-6 h-full flex flex-col">
+            <div className="rounded-2xl bg-black p-6 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-white">
                 Secure & scalable
               </h3>
@@ -183,13 +181,13 @@ export default function Home() {
         </section>
 
         <section className="mt-16 rounded-2xl gradient-border animate-border">
-          <div className="rounded-2xl bg-slate-950 p-8">
+          <div className="rounded-2xl bg-black p-8">
             <h2 className="text-2xl font-semibold text-white">
               Dashboard features included
             </h2>
             <div className="mt-8 grid gap-6 md:grid-cols-2">
               <div className="rounded-xl gradient-border animate-border">
-                <div className="rounded-xl bg-slate-950 p-6">
+                <div className="rounded-xl bg-black p-6">
                   <h4 className="text-base font-semibold text-white">
                     Clipboard History
                   </h4>
@@ -200,7 +198,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="rounded-xl gradient-border animate-border">
-                <div className="rounded-xl bg-slate-950 p-6">
+                <div className="rounded-xl bg-black p-6">
                   <h4 className="text-base font-semibold text-white">
                     Image Gallery
                   </h4>
@@ -211,7 +209,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="rounded-xl gradient-border animate-border">
-                <div className="rounded-xl bg-slate-950 p-6">
+                <div className="rounded-xl bg-black p-6">
                   <h4 className="text-base font-semibold text-white">
                     File Gallery
                   </h4>
@@ -222,7 +220,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="rounded-xl gradient-border animate-border">
-                <div className="rounded-xl bg-slate-950 p-6">
+                <div className="rounded-xl bg-black p-6">
                   <h4 className="text-base font-semibold text-white">
                     Video Gallery
                   </h4>
@@ -233,7 +231,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="rounded-xl gradient-border animate-border">
-                <div className="rounded-xl bg-slate-950 p-6">
+                <div className="rounded-xl bg-black p-6">
                   <h4 className="text-base font-semibold text-white">
                     Workspace Collaboration
                   </h4>

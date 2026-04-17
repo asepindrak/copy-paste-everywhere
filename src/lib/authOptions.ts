@@ -38,6 +38,7 @@ export const authOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
+          image: user.image,
         };
       },
     }),
@@ -49,13 +50,18 @@ export const authOptions = {
     async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = user.id;
-        token.email = user.email; // Ensure email is in the token
+        token.email = user.email;
+        token.name = user.name ?? token.name;
+        token.picture = user.image ?? token.picture;
       }
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.name = (token.name as string | undefined) ?? null;
+        session.user.email = (token.email as string | undefined) ?? null;
+        session.user.image = (token.picture as string | undefined) ?? null;
       }
       return session;
     },

@@ -15,7 +15,7 @@ import {
 import { io, type Socket } from "socket.io-client";
 import Select, { type SingleValue } from "react-select";
 import {
-  FaEdit,
+  FaCog,
   FaHistory,
   FaImages,
   FaFileAlt,
@@ -28,6 +28,7 @@ import {
   FaSignOutAlt,
   FaTimes,
   FaSpinner,
+  FaUser,
 } from "react-icons/fa";
 import Image from "next/image";
 import packageJson from "../../../package.json";
@@ -41,6 +42,7 @@ import HistoryPreviewModal from "./components/HistoryPreviewModal";
 import LiveEditor from "./components/LiveEditor";
 import HistorySidebar from "./components/HistorySidebar";
 import PWAInstallButton from "./components/PWAInstallButton";
+import ProfileEditModal from "./components/ProfileEditModal";
 import type { CopyItem, FetchHistoryResponse } from "../../types/dashboard";
 
 interface ClipboardUpdateAck {
@@ -178,7 +180,7 @@ interface PendingInvite {
 }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
 
   const [content, setContent] = useState("");
@@ -297,6 +299,18 @@ export default function DashboardPage() {
   const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
   const [updatingTitleIds, setUpdatingTitleIds] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProfileEditModalOpen, setIsProfileEditModalOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [passwordFormError, setPasswordFormError] = useState<string | null>(
+    null,
+  );
 
   type WorkspaceOption = {
     value: string;
@@ -367,6 +381,21 @@ export default function DashboardPage() {
   );
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const profileInitial =
+    (session?.user?.name ?? session?.user?.email ?? "U")[0]?.toUpperCase() ??
+    "U";
+
+  useEffect(() => {
+    if (!session?.user) return;
+    setProfileName(session.user.name ?? "");
+    // Add cache-busting parameter to avatar to prevent stale image display
+    let avatarImage = session.user.image ?? null;
+    if (avatarImage && !avatarImage.includes("?t=")) {
+      const separator = avatarImage.includes("?") ? "&" : "?";
+      avatarImage = `${avatarImage}${separator}t=${Date.now()}`;
+    }
+    setProfileImage(avatarImage);
+  }, [session?.user?.name, session?.user?.image]);
 
   // Search and Pagination states
   const [searchQuery, setSearchQuery] = useState("");
@@ -2111,152 +2140,307 @@ export default function DashboardPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-800 bg-slate-950/95 px-3 py-2 shadow-lg backdrop-blur sm:px-6 sm:py-3 lg:px-8">
-        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-2 sm:gap-4">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={36}
-              height={36}
-              className="rounded-xl shadow-lg"
-            />
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-semibold tracking-tight text-white sm:text-lg">
-                Copy Paste <span className="text-blue-500">Everywhere</span>
-              </h1>
-              <p className="text-[10px] text-slate-500 sm:text-xs">v{appVersion}</p>
-            </div>
-          </div>
+  const handleProfileSave = async () => {
+    if (isProfileSaving) return;
+    setIsProfileSaving(true);
+    setError(null);
 
-          <div className="relative flex items-center gap-2 sm:gap-3">
-            <PWAInstallButton />
-            <button
-              type="button"
-              onClick={() => setIsProfileMenuOpen((current) => !current)}
-              className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1.5 transition hover:border-blue-500 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2"
-              aria-expanded={isProfileMenuOpen}
-              aria-haspopup="menu"
-            >
-              <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white sm:h-9 sm:w-9">
-                {(session?.user?.name ??
-                  session?.user?.email ??
-                  "U")[0]?.toUpperCase()}
-              </div>
-              <div className="hidden text-left sm:block">
-                <p className="text-sm font-semibold text-white">
-                  {session?.user?.name ?? session?.user?.email ?? "User"}
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profileName }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update profile.");
+      }
+
+      const data = await res.json();
+      await updateSession({
+        name: data.user?.name ?? null,
+        image: data.user?.image ?? null,
+      });
+      showToast("Profile updated");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsAvatarUploading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/profile/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to upload avatar.");
+      }
+
+      const data = await res.json();
+      let nextImage = data.user?.image ?? null;
+      // Add cache-busting timestamp to force fresh image load
+      if (nextImage) {
+        const separator = nextImage.includes("?") ? "&" : "?";
+        nextImage = `${nextImage}${separator}t=${Date.now()}`;
+      }
+      setProfileImage(nextImage);
+      await updateSession({
+        name: data.user?.name ?? profileName,
+        image: nextImage,
+      });
+      showToast("Avatar updated");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsAvatarUploading(false);
+      event.target.value = "";
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (isPasswordSaving) return;
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setPasswordFormError("Please fill in all password fields.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordFormError("New password and confirmation do not match.");
+      return;
+    }
+
+    setIsPasswordSaving(true);
+    setPasswordFormError(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update password.");
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      showToast("Password updated");
+    } catch (err) {
+      const message = (err as Error).message;
+      setPasswordFormError(message);
+      setError(message);
+    } finally {
+      setIsPasswordSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-transparent text-slate-100 font-sans">
+      <div className="relative">
+        <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-800/80 bg-[#060b12]/90 px-3 py-2 backdrop-blur-xl sm:px-6 sm:py-3 lg:px-8">
+          <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-2 sm:gap-4">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={36}
+                height={36}
+                className="rounded-xl ring-1 ring-slate-700/80"
+              />
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold tracking-tight text-white sm:text-lg">
+                  Copy Paste <span className="text-sky-400">Everywhere</span>
+                </h1>
+                <p className="text-[10px] text-slate-400 sm:text-xs">
+                  v{appVersion}
                 </p>
               </div>
-              <span className="hidden text-xs text-slate-400 sm:block">▾</span>
-            </button>
+            </div>
 
-            {isProfileMenuOpen && (
-              <div
-                ref={profileMenuRef}
-                className="absolute right-0 top-full z-20 mt-3 w-[18rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl"
+            <div className="relative flex items-center gap-2 sm:gap-3">
+              <PWAInstallButton />
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((current) => !current)}
+                className="flex items-center gap-2 rounded-xl border border-slate-700/80 bg-slate-900/70 px-2 py-1.5 transition hover:border-slate-500 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2"
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
               >
-                <div className="p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                    Profile
+                <div className="h-8 w-8 overflow-hidden rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white sm:h-9 sm:w-9">
+                  {profileImage ? (
+                    <Image
+                      src={profileImage}
+                      alt="Profile avatar"
+                      width={36}
+                      height={36}
+                      unoptimized
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    profileInitial
+                  )}
+                </div>
+                <div className="hidden text-left sm:block">
+                  <p className="text-sm font-semibold text-white">
+                    {session?.user?.name ?? session?.user?.email ?? "User"}
                   </p>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center text-lg font-bold text-white">
-                      {(session?.user?.name ??
-                        session?.user?.email ??
-                        "U")[0]?.toUpperCase()}
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-white">
-                        {session?.user?.name ??
-                          session?.user?.email ??
-                          "User"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {session?.user?.email ?? "No email available"}
-                      </p>
+                </div>
+                <span className="hidden text-xs text-slate-400 sm:block">
+                  ▾
+                </span>
+              </button>
+
+              {isProfileMenuOpen && (
+                <div
+                  ref={profileMenuRef}
+                  className="absolute right-0 top-full z-20 mt-3 w-[18rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-slate-700/80 bg-[#0a111b] shadow-2xl"
+                >
+                  <div className="p-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                      Profile
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="h-12 w-12 overflow-hidden rounded-2xl bg-blue-600 flex items-center justify-center text-lg font-bold text-white">
+                        {profileImage ? (
+                          <Image
+                            src={profileImage}
+                            alt="Profile avatar"
+                            width={48}
+                            height={48}
+                            unoptimized
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          profileInitial
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-white">
+                          {session?.user?.name ??
+                            session?.user?.email ??
+                            "User"}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {session?.user?.email ?? "No email available"}
+                        </p>
+                      </div>
                     </div>
                   </div>
+                  <div className="border-t border-slate-800" />
+                  <div className="space-y-3 p-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileEditModalOpen(true);
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                        <FaUser className="h-4 w-4" />
+                      </div>
+                      Edit profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsClearAllModalOpen(true);
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500 hover:text-white"
+                      title="Clear personal clipboard"
+                      aria-label="Clear personal clipboard"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 group-hover:bg-white/20">
+                        <FaTrash className="h-4 w-4" />
+                      </div>
+                      Clear clipboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => signOut({ callbackUrl: "/login" })}
+                      className="w-full flex items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white"
+                      title="Logout"
+                      aria-label="Logout"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                        <FaSignOutAlt className="h-4 w-4" />
+                      </div>
+                      Logout
+                    </button>
+                  </div>
                 </div>
-                <div className="border-t border-slate-800" />
-                <div className="p-4 space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsClearAllModalOpen(true);
-                      setIsProfileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500 hover:text-white"
-                    title="Clear personal clipboard"
-                    aria-label="Clear personal clipboard"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 group-hover:bg-white/20">
-                      <FaTrash className="h-4 w-4" />
-                    </div>
-                    Clear clipboard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="w-full flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
-                    title="Logout"
-                    aria-label="Logout"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
-                      <FaSignOutAlt className="h-4 w-4" />
-                    </div>
-                    Logout
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="mx-auto max-w-6xl min-w-0 px-4 pb-10 pt-20 sm:px-6 sm:pt-28 lg:px-8">
-        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div
-                className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
-              />
-              <span className="text-xs font-medium text-slate-300 sm:text-sm">
-                {isConnected ? "Realtime Connected" : "Realtime Disconnected"}
+        <div className="mx-auto max-w-6xl min-w-0 px-4 pb-10 pt-20 sm:px-6 sm:pt-28 lg:px-8">
+          <section className="mb-8 rounded-2xl border border-slate-800/90 bg-slate-900/55 p-4 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] backdrop-blur-sm sm:p-5">
+            <div className="mb-3 flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+                />
+                <span className="text-xs font-medium text-slate-300 sm:text-sm">
+                  {isConnected ? "Realtime Connected" : "Realtime Disconnected"}
+                </span>
+              </div>
+              <div className="hidden h-4 w-px bg-slate-700 sm:block" />
+              <span className="text-xs text-slate-400 sm:text-sm">
+                {lastSavedAt ? `Last update: ${lastSavedAt}` : "No update yet"}
               </span>
             </div>
-            <div className="h-4 w-px bg-slate-800 hidden sm:block" />
-            <span className="text-xs text-slate-400 sm:text-sm">
-              {lastSavedAt ? `Last update: ${lastSavedAt}` : "No update yet"}
-            </span>
-          </div>
 
-          <div className="flex items-center gap-2 sm:grid sm:gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto]">
-            <div className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-950/80 px-2 py-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:px-3 sm:py-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800/80 bg-[#0c1320]/75 px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2 relative z-10">
               <label
                 className="hidden text-xs uppercase tracking-[0.2em] text-slate-500 sm:block"
                 htmlFor="workspace-select"
               >
                 Active workspace
               </label>
-              <div className="min-w-0 flex-1 sm:min-w-[220px]">
+              <div className="min-w-0 flex-1 sm:min-w-[220px] relative z-20">
                 <Select
                   instanceId="workspace-select"
                   inputId="workspace-select-input"
                   options={workspaceOptions}
                   value={selectedWorkspaceOption}
                   onChange={handleWorkspaceSelect}
+                  menuPortalTarget={
+                    typeof document !== "undefined" ? document.body : undefined
+                  }
                   className="react-select-container"
                   classNamePrefix="react-select"
                   styles={{
                     control: (base) => ({
                       ...base,
-                      backgroundColor: "#0f172a",
+                      backgroundColor: "#0c1320",
                       borderColor: "#334155",
                       color: "#fff",
                       minHeight: "42px",
+                      boxShadow: "none",
                     }),
                     singleValue: (base) => ({
                       ...base,
@@ -2264,11 +2448,16 @@ export default function DashboardPage() {
                     }),
                     menu: (base) => ({
                       ...base,
-                      backgroundColor: "#0f172a",
+                      backgroundColor: "#0c1320",
+                      zIndex: 9999,
+                    }),
+                    menuPortal: (base) => ({
+                      ...base,
+                      zIndex: 9999,
                     }),
                     option: (base, state) => ({
                       ...base,
-                      backgroundColor: state.isFocused ? "#1e293b" : "#0f172a",
+                      backgroundColor: state.isFocused ? "#1e293b" : "#0c1320",
                       color: state.isSelected ? "#fff" : "#cbd5e1",
                     }),
                   }}
@@ -2285,412 +2474,438 @@ export default function DashboardPage() {
                   })}
                 />
               </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setIsWorkspaceModalOpen(true)}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-blue-600 p-2 text-white transition hover:bg-blue-500 sm:h-fit sm:self-start sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs sm:font-semibold lg:self-center"
-              title="Manage workspace"
-              aria-label="Manage workspace"
-            >
-              <FaEdit className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Manage workspace</span>
-            </button>
-          </div>
-          {workspaceInfo && (
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
-              {workspaceInfo}
+              <button
+                type="button"
+                onClick={() => setIsWorkspaceModalOpen(true)}
+                className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900/70 p-2 text-slate-200 transition hover:bg-slate-800 hover:text-white sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs sm:font-semibold"
+                title="Manage workspace"
+                aria-label="Manage workspace"
+              >
+                <FaCog className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Manage workspace</span>
+              </button>
             </div>
-          )}
-
-          {pendingInvites.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm text-slate-200">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="font-semibold text-white">
-                  Pending Workspace Invites
-                </span>
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Accept to join
-                </span>
+            {workspaceInfo && (
+              <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-900/65 p-4 text-sm text-slate-200">
+                {workspaceInfo}
               </div>
-              <div className="space-y-3">
-                {pendingInvites.map((invite) => (
-                  <div
-                    key={invite.id}
-                    className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="text-sm text-slate-300">
-                        Invite to{" "}
-                        <span className="font-semibold text-white">
-                          {invite.workspace?.name}
-                        </span>
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        From {invite.invitedBy?.email || "unknown"}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAcceptInvite(invite.id)}
-                      disabled={acceptingInviteId === invite.id}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            )}
+
+            {pendingInvites.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/75 p-4 text-sm text-slate-200">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-semibold text-white">
+                    Pending Workspace Invites
+                  </span>
+                  <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Accept to join
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {pendingInvites.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex flex-col gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/70 p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      {acceptingInviteId === invite.id ? (
-                        <>
-                          <FaSpinner className="h-4 w-4 animate-spin" />
-                          Accepting...
-                        </>
-                      ) : (
-                        "Accept invite"
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-
-        {isWorkspaceModalOpen && (
-          <WorkspaceModal
-            activeWorkspaceName={activeWorkspaceName}
-            workspaceOptions={workspaceOptions}
-            selectedWorkspaceOption={selectedWorkspaceOption}
-            workspaceCreateName={workspaceCreateName}
-            workspaceInviteEmail={workspaceInviteEmail}
-            workspaceInfo={workspaceInfo}
-            pendingInvites={pendingInvites}
-            isWorkspaceSaving={isWorkspaceSaving}
-            isInviteSaving={isInviteSaving}
-            acceptingInviteId={acceptingInviteId}
-            onClose={() => setIsWorkspaceModalOpen(false)}
-            onWorkspaceCreateNameChange={setWorkspaceCreateName}
-            onWorkspaceInviteEmailChange={setWorkspaceInviteEmail}
-            onWorkspaceSelect={handleWorkspaceSelect}
-            onCreateWorkspace={handleCreateWorkspace}
-            onSendInvite={handleSendInvite}
-            onAcceptInvite={handleAcceptInvite}
-          />
-        )}
-
-        {isClearAllModalOpen && (
-          <ClearAllModal
-            clearAllConfirmation={clearAllConfirmation}
-            isClearingAll={isClearingAll}
-            onClose={() => {
-              setIsClearAllModalOpen(false);
-              setClearAllConfirmation("");
-            }}
-            onConfirmationChange={setClearAllConfirmation}
-            onConfirm={handleClearAllPersonalClipboard}
-          />
-        )}
-
-        <ImageGalleryModal
-          isOpen={isImageGalleryOpen}
-          searchValue={imageGallerySearch}
-          items={imageGalleryItems}
-          previewImageIndex={previewImageIndex}
-          copyingIds={copyingIds}
-          downloadingIds={downloadingIds}
-          deletingIds={deletingIds}
-          isLoadingMore={isImageGalleryLoadingMore}
-          hasMore={imageGalleryHasMore}
-          loadMoreRef={imageGalleryLoadMoreRef}
-          onClose={() => setIsImageGalleryOpen(false)}
-          onSearchChange={setImageGallerySearch}
-          onPreviewImageIndexChange={setPreviewImageIndex}
-          onCopy={handleCopy}
-          onDownload={downloadContent}
-          onDelete={handleDelete}
-          getFileNameFromUrl={getFileNameFromUrl}
-          getFileType={getFileType}
-          getFileSize={getFileSize}
-          getImageSrc={getImageSrc}
-        />
-
-        <HistoryPreviewModal
-          item={historyPreviewItem}
-          onClose={() => setHistoryPreviewItem(null)}
-          onCopy={handleCopy}
-          onDownload={downloadContent}
-          copyingIds={copyingIds}
-          downloadingIds={downloadingIds}
-          getFileNameFromUrl={getFileNameFromUrl}
-        />
-
-        <VideoGalleryModal
-          isOpen={isVideoGalleryOpen}
-          searchValue={videoGallerySearch}
-          items={videoGalleryItems}
-          copyingIds={copyingIds}
-          downloadingIds={downloadingIds}
-          deletingIds={deletingIds}
-          isLoadingMore={isVideoGalleryLoadingMore}
-          hasMore={videoGalleryHasMore}
-          loadMoreRef={videoGalleryLoadMoreRef}
-          onClose={() => setIsVideoGalleryOpen(false)}
-          onSearchChange={setVideoGallerySearch}
-          onCopy={handleCopy}
-          onDownload={downloadContent}
-          onDelete={handleDelete}
-          getFileNameFromUrl={getFileNameFromUrl}
-          getFileSize={getFileSize}
-        />
-        {previewImage !== null && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95"
-            onClick={() => setPreviewImageIndex(null)}
-          >
-            <div className="absolute inset-0" />
-            <button
-              type="button"
-              onClick={() => setPreviewImageIndex(null)}
-              className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950/90 text-slate-300 transition hover:border-slate-600 hover:text-white"
-              aria-label="Close preview"
-            >
-              ×
-            </button>
-            <div
-              className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-slate-950"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="absolute left-4 top-1/2 z-20 -translate-y-1/2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPreviewImageIndex((current) => {
-                      if (current === null) return null;
-                      return current === 0
-                        ? imageGalleryItems.length - 1
-                        : current - 1;
-                    })
-                  }
-                  className="rounded-full border border-slate-700 bg-slate-950/90 p-3 text-slate-200 transition hover:bg-slate-900"
-                  aria-label="Previous image"
-                >
-                  <FaChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="absolute right-4 top-1/2 z-20 -translate-y-1/2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPreviewImageIndex((current) => {
-                      if (current === null) return null;
-                      return current === imageGalleryItems.length - 1
-                        ? 0
-                        : current + 1;
-                    })
-                  }
-                  className="rounded-full border border-slate-700 bg-slate-950/90 p-3 text-slate-200 transition hover:bg-slate-900"
-                  aria-label="Next image"
-                >
-                  <FaChevronRight className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="relative flex h-full w-full items-center justify-center p-4">
-                <div className="max-h-full w-full max-w-6xl overflow-hidden rounded-2xl bg-slate-950">
-                  <Image
-                    src={getImageSrc(previewImage.content)}
-                    alt={previewImage.fileName ?? "Preview image"}
-                    width={1600}
-                    height={1200}
-                    unoptimized
-                    className="mx-auto max-h-[90vh] w-full object-contain"
-                  />
+                      <div>
+                        <p className="text-sm text-slate-300">
+                          Invite to{" "}
+                          <span className="font-semibold text-white">
+                            {invite.workspace?.name}
+                          </span>
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          From {invite.invitedBy?.email || "unknown"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptInvite(invite.id)}
+                        disabled={acceptingInviteId === invite.id}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {acceptingInviteId === invite.id ? (
+                          <>
+                            <FaSpinner className="h-4 w-4 animate-spin" />
+                            Accepting...
+                          </>
+                        ) : (
+                          "Accept invite"
+                        )}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 gap-3 rounded-2xl bg-slate-950/90 px-4 py-3 shadow-2xl backdrop-blur-sm">
-                <button
-                  type="button"
-                  onClick={() =>
-                    previewImage &&
-                    handleCopy(previewImage.content, previewImage.id)
-                  }
-                  disabled={
-                    previewImage ? copyingIds.includes(previewImage.id) : false
-                  }
-                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white transition ${previewImage && copyingIds.includes(previewImage.id) ? "bg-blue-500/70 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
-                >
-                  {previewImage && copyingIds.includes(previewImage.id) ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="animate-spin"
-                    >
-                      <circle cx="12" cy="12" r="8" className="opacity-25" />
-                      <path d="M12 4v4" />
-                    </svg>
-                  ) : (
-                    <FaCopy className="h-4 w-4" />
-                  )}
-                  {previewImage && copyingIds.includes(previewImage.id)
-                    ? "Copying..."
-                    : "Copy"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    previewImage &&
-                    downloadContent(
-                      previewImage.content,
-                      previewImage.fileName ??
-                        getFileNameFromUrl(previewImage.content),
-                      previewImage.id,
-                    )
-                  }
-                  disabled={
-                    previewImage
-                      ? downloadingIds.includes(previewImage.id)
-                      : false
-                  }
-                  className={`inline-flex items-center gap-2 rounded-2xl border border-slate-700 px-4 py-2 text-sm font-semibold transition ${previewImage && downloadingIds.includes(previewImage.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-slate-950 text-slate-200 hover:bg-slate-900"}`}
-                >
-                  {previewImage && downloadingIds.includes(previewImage.id) ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="animate-spin"
-                    >
-                      <circle cx="12" cy="12" r="8" className="opacity-25" />
-                      <path d="M12 4v4" />
-                    </svg>
-                  ) : (
-                    <FaDownload className="h-4 w-4" />
-                  )}
-                  {previewImage && downloadingIds.includes(previewImage.id)
-                    ? "Downloading..."
-                    : "Download"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            )}
+          </section>
 
-        <FileGalleryModal
-          isOpen={isFileGalleryOpen}
-          searchValue={fileGallerySearch}
-          items={fileGalleryItems}
-          copyingIds={copyingIds}
-          downloadingIds={downloadingIds}
-          deletingIds={deletingIds}
-          isLoadingMore={isFileGalleryLoadingMore}
-          hasMore={fileGalleryHasMore}
-          loadMoreRef={fileGalleryLoadMoreRef}
-          onClose={() => setIsFileGalleryOpen(false)}
-          onSearchChange={setFileGallerySearch}
-          onCopy={handleCopy}
-          onDownload={downloadContent}
-          onDelete={handleDelete}
-          getFileNameFromUrl={getFileNameFromUrl}
-          getFileType={getFileType}
-          getFileSize={getFileSize}
-        />
+          {isWorkspaceModalOpen && (
+            <WorkspaceModal
+              activeWorkspaceName={activeWorkspaceName}
+              workspaceOptions={workspaceOptions}
+              selectedWorkspaceOption={selectedWorkspaceOption}
+              workspaceCreateName={workspaceCreateName}
+              workspaceInviteEmail={workspaceInviteEmail}
+              workspaceInfo={workspaceInfo}
+              pendingInvites={pendingInvites}
+              isWorkspaceSaving={isWorkspaceSaving}
+              isInviteSaving={isInviteSaving}
+              acceptingInviteId={acceptingInviteId}
+              onClose={() => setIsWorkspaceModalOpen(false)}
+              onWorkspaceCreateNameChange={setWorkspaceCreateName}
+              onWorkspaceInviteEmailChange={setWorkspaceInviteEmail}
+              onWorkspaceSelect={handleWorkspaceSelect}
+              onCreateWorkspace={handleCreateWorkspace}
+              onSendInvite={handleSendInvite}
+              onAcceptInvite={handleAcceptInvite}
+            />
+          )}
 
-        {error && (
-          <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-3">
-            <span className="flex-shrink-0 text-red-400">⚠️</span>
-            {error}
-          </div>
-        )}
+          {isClearAllModalOpen && (
+            <ClearAllModal
+              clearAllConfirmation={clearAllConfirmation}
+              isClearingAll={isClearingAll}
+              onClose={() => {
+                setIsClearAllModalOpen(false);
+                setClearAllConfirmation("");
+              }}
+              onConfirmationChange={setClearAllConfirmation}
+              onConfirm={handleClearAllPersonalClipboard}
+            />
+          )}
 
-        {toastMessage && <DashboardToast message={toastMessage} />}
-
-        <div className="grid min-w-0 gap-8 lg:grid-cols-3">
-          <LiveEditor
-            content={content}
-            contentType={contentType}
-            copied={copied}
-            pasted={pasted}
-            cleared={cleared}
-            isSaving={isSaving}
-            isUploading={isUploading}
-            uploadProgress={uploadProgress}
-            currentFileName={currentFileName}
-            currentFileSize={currentFileSize}
-            isDragActive={isDragActive}
-            onCopyAll={handleCopyAll}
-            onPaste={handlePaste}
-            onClear={handleClear}
-            onChange={handleChange}
-            onPasteEvent={handlePasteEvent}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            downloadContent={downloadContent}
-            getImageSrc={getImageSrc}
-            getFileNameFromUrl={getFileNameFromUrl}
-            getFileType={getFileType}
-            isRemoteFile={isRemoteFile}
-            isLocalPath={isLocalPath}
-            isVideoContent={isVideoContent}
+          <ProfileEditModal
+            isOpen={isProfileEditModalOpen}
+            profileName={profileName}
+            profileImage={profileImage}
+            profileInitial={profileInitial}
+            isAvatarUploading={isAvatarUploading}
+            isProfileSaving={isProfileSaving}
+            currentPassword={currentPassword}
+            newPassword={newPassword}
+            confirmNewPassword={confirmNewPassword}
+            isPasswordSaving={isPasswordSaving}
+            onClose={() => setIsProfileEditModalOpen(false)}
+            onProfileNameChange={setProfileName}
+            onAvatarUpload={handleAvatarUpload}
+            onProfileSave={handleProfileSave}
+            onCurrentPasswordChange={setCurrentPassword}
+            onNewPasswordChange={setNewPassword}
+            onConfirmNewPasswordChange={setConfirmNewPassword}
+            onPasswordUpdate={handlePasswordUpdate}
+            passwordFormError={passwordFormError}
+            onPasswordFieldChange={() => setPasswordFormError(null)}
           />
 
-          <HistorySidebar
-            history={history}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onOpenImageGallery={() => setIsImageGalleryOpen(true)}
-            onOpenFileGallery={() => setIsFileGalleryOpen(true)}
-            onOpenVideoGallery={() => setIsVideoGalleryOpen(true)}
-            onCopy={handleCopy}
-            onDelete={handleDelete}
-            onDownload={downloadContent}
-            setHistoryPreviewItem={setHistoryPreviewItem}
-            isLoadingMore={isLoadingMore}
-            hasMore={hasMore}
-            scrollContainerRef={historyScrollContainerRef}
-            loadMoreRef={loadMoreRef}
-            copiedHistoryId={copiedHistoryId}
+          <ImageGalleryModal
+            isOpen={isImageGalleryOpen}
+            searchValue={imageGallerySearch}
+            items={imageGalleryItems}
+            previewImageIndex={previewImageIndex}
             copyingIds={copyingIds}
             downloadingIds={downloadingIds}
             deletingIds={deletingIds}
-            updatingTitleIds={updatingTitleIds}
-            onUpdateTitle={handleUpdateTitle}
-            isImageContent={isImageContent}
-            isVideoContent={isVideoContent}
-            isRemoteFile={isRemoteFile}
-            isLocalPath={isLocalPath}
+            isLoadingMore={isImageGalleryLoadingMore}
+            hasMore={imageGalleryHasMore}
+            loadMoreRef={imageGalleryLoadMoreRef}
+            onClose={() => setIsImageGalleryOpen(false)}
+            onSearchChange={setImageGallerySearch}
+            onPreviewImageIndexChange={setPreviewImageIndex}
+            onCopy={handleCopy}
+            onDownload={downloadContent}
+            onDelete={handleDelete}
+            getFileNameFromUrl={getFileNameFromUrl}
+            getFileType={getFileType}
+            getFileSize={getFileSize}
             getImageSrc={getImageSrc}
+          />
+
+          <HistoryPreviewModal
+            item={historyPreviewItem}
+            onClose={() => setHistoryPreviewItem(null)}
+            onCopy={handleCopy}
+            onDownload={downloadContent}
+            copyingIds={copyingIds}
+            downloadingIds={downloadingIds}
+            getFileNameFromUrl={getFileNameFromUrl}
+          />
+
+          <VideoGalleryModal
+            isOpen={isVideoGalleryOpen}
+            searchValue={videoGallerySearch}
+            items={videoGalleryItems}
+            copyingIds={copyingIds}
+            downloadingIds={downloadingIds}
+            deletingIds={deletingIds}
+            isLoadingMore={isVideoGalleryLoadingMore}
+            hasMore={videoGalleryHasMore}
+            loadMoreRef={videoGalleryLoadMoreRef}
+            onClose={() => setIsVideoGalleryOpen(false)}
+            onSearchChange={setVideoGallerySearch}
+            onCopy={handleCopy}
+            onDownload={downloadContent}
+            onDelete={handleDelete}
+            getFileNameFromUrl={getFileNameFromUrl}
+            getFileSize={getFileSize}
+          />
+          {previewImage !== null && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
+              onClick={() => setPreviewImageIndex(null)}
+            >
+              <div className="absolute inset-0" />
+              <button
+                type="button"
+                onClick={() => setPreviewImageIndex(null)}
+                className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-gray-700 bg-black/90 text-slate-300 transition hover:border-slate-600 hover:text-white"
+                aria-label="Close preview"
+              >
+                ×
+              </button>
+              <div
+                className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-black"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="absolute left-4 top-1/2 z-20 -translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewImageIndex((current) => {
+                        if (current === null) return null;
+                        return current === 0
+                          ? imageGalleryItems.length - 1
+                          : current - 1;
+                      })
+                    }
+                    className="rounded-full border border-gray-700 bg-black/90 p-3 text-slate-200 transition hover:bg-gray-900"
+                    aria-label="Previous image"
+                  >
+                    <FaChevronLeft className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="absolute right-4 top-1/2 z-20 -translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewImageIndex((current) => {
+                        if (current === null) return null;
+                        return current === imageGalleryItems.length - 1
+                          ? 0
+                          : current + 1;
+                      })
+                    }
+                    className="rounded-full border border-gray-700 bg-black/90 p-3 text-slate-200 transition hover:bg-gray-900"
+                    aria-label="Next image"
+                  >
+                    <FaChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="relative flex h-full w-full items-center justify-center p-4">
+                  <div className="max-h-full w-full max-w-6xl overflow-hidden rounded-2xl bg-black">
+                    <Image
+                      src={getImageSrc(previewImage.content)}
+                      alt={previewImage.fileName ?? "Preview image"}
+                      width={1600}
+                      height={1200}
+                      unoptimized
+                      className="mx-auto max-h-[90vh] w-full object-contain"
+                    />
+                  </div>
+                </div>
+                <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 gap-3 rounded-2xl bg-black/90 px-4 py-3 shadow-2xl backdrop-blur-sm">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      previewImage &&
+                      handleCopy(previewImage.content, previewImage.id)
+                    }
+                    disabled={
+                      previewImage
+                        ? copyingIds.includes(previewImage.id)
+                        : false
+                    }
+                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white transition ${previewImage && copyingIds.includes(previewImage.id) ? "bg-blue-500/70 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
+                  >
+                    {previewImage && copyingIds.includes(previewImage.id) ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="animate-spin"
+                      >
+                        <circle cx="12" cy="12" r="8" className="opacity-25" />
+                        <path d="M12 4v4" />
+                      </svg>
+                    ) : (
+                      <FaCopy className="h-4 w-4" />
+                    )}
+                    {previewImage && copyingIds.includes(previewImage.id)
+                      ? "Copying..."
+                      : "Copy"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      previewImage &&
+                      downloadContent(
+                        previewImage.content,
+                        previewImage.fileName ??
+                          getFileNameFromUrl(previewImage.content),
+                        previewImage.id,
+                      )
+                    }
+                    disabled={
+                      previewImage
+                        ? downloadingIds.includes(previewImage.id)
+                        : false
+                    }
+                    className={`inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2 text-sm font-semibold transition ${previewImage && downloadingIds.includes(previewImage.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-black text-slate-200 hover:bg-gray-900"}`}
+                  >
+                    {previewImage &&
+                    downloadingIds.includes(previewImage.id) ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="animate-spin"
+                      >
+                        <circle cx="12" cy="12" r="8" className="opacity-25" />
+                        <path d="M12 4v4" />
+                      </svg>
+                    ) : (
+                      <FaDownload className="h-4 w-4" />
+                    )}
+                    {previewImage && downloadingIds.includes(previewImage.id)
+                      ? "Downloading..."
+                      : "Download"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <FileGalleryModal
+            isOpen={isFileGalleryOpen}
+            searchValue={fileGallerySearch}
+            items={fileGalleryItems}
+            copyingIds={copyingIds}
+            downloadingIds={downloadingIds}
+            deletingIds={deletingIds}
+            isLoadingMore={isFileGalleryLoadingMore}
+            hasMore={fileGalleryHasMore}
+            loadMoreRef={fileGalleryLoadMoreRef}
+            onClose={() => setIsFileGalleryOpen(false)}
+            onSearchChange={setFileGallerySearch}
+            onCopy={handleCopy}
+            onDownload={downloadContent}
+            onDelete={handleDelete}
             getFileNameFromUrl={getFileNameFromUrl}
             getFileType={getFileType}
             getFileSize={getFileSize}
           />
-        </div>
-      </div>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1e293b;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #334155;
-        }
-      `}</style>
+          {error && (
+            <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-3">
+              <span className="flex-shrink-0 text-red-400">⚠️</span>
+              {error}
+            </div>
+          )}
+
+          {toastMessage && <DashboardToast message={toastMessage} />}
+
+          <div className="grid min-w-0 gap-8 lg:grid-cols-3 relative z-0">
+            <LiveEditor
+              content={content}
+              contentType={contentType}
+              copied={copied}
+              pasted={pasted}
+              cleared={cleared}
+              isSaving={isSaving}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+              currentFileName={currentFileName}
+              currentFileSize={currentFileSize}
+              isDragActive={isDragActive}
+              onCopyAll={handleCopyAll}
+              onPaste={handlePaste}
+              onClear={handleClear}
+              onChange={handleChange}
+              onPasteEvent={handlePasteEvent}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              downloadContent={downloadContent}
+              getImageSrc={getImageSrc}
+              getFileNameFromUrl={getFileNameFromUrl}
+              getFileType={getFileType}
+              isRemoteFile={isRemoteFile}
+              isLocalPath={isLocalPath}
+              isVideoContent={isVideoContent}
+            />
+
+            <HistorySidebar
+              history={history}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              onOpenImageGallery={() => setIsImageGalleryOpen(true)}
+              onOpenFileGallery={() => setIsFileGalleryOpen(true)}
+              onOpenVideoGallery={() => setIsVideoGalleryOpen(true)}
+              onCopy={handleCopy}
+              onDelete={handleDelete}
+              onDownload={downloadContent}
+              setHistoryPreviewItem={setHistoryPreviewItem}
+              isLoadingMore={isLoadingMore}
+              hasMore={hasMore}
+              scrollContainerRef={historyScrollContainerRef}
+              loadMoreRef={loadMoreRef}
+              copiedHistoryId={copiedHistoryId}
+              copyingIds={copyingIds}
+              downloadingIds={downloadingIds}
+              deletingIds={deletingIds}
+              updatingTitleIds={updatingTitleIds}
+              onUpdateTitle={handleUpdateTitle}
+              isImageContent={isImageContent}
+              isVideoContent={isVideoContent}
+              isRemoteFile={isRemoteFile}
+              isLocalPath={isLocalPath}
+              getImageSrc={getImageSrc}
+              getFileNameFromUrl={getFileNameFromUrl}
+              getFileType={getFileType}
+              getFileSize={getFileSize}
+            />
+          </div>
+        </div>
+
+        <style jsx global>{`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+          }
+        `}</style>
+      </div>
     </div>
   );
 }

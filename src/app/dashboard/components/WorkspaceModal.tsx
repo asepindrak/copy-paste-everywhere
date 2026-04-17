@@ -55,14 +55,14 @@ export default function WorkspaceModal({
 }: WorkspaceModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-[#0b121c] shadow-[0_28px_80px_-42px_rgba(0,0,0,0.95)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-white">
               Workspace Manager
@@ -80,14 +80,14 @@ export default function WorkspaceModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
             aria-label="Close workspace manager"
           >
             <FaTimes className="h-4 w-4" />
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 custom-scrollbar">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+          <div className="rounded-2xl border border-slate-700/80 bg-slate-950/70 p-5">
             <label
               className="block text-sm font-medium text-slate-300"
               htmlFor="workspace-name-modal"
@@ -101,7 +101,7 @@ export default function WorkspaceModal({
                 onChange={(event) =>
                   onWorkspaceCreateNameChange(event.target.value)
                 }
-                className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="min-w-0 flex-1 rounded-2xl border border-gray-700/40 bg-slate-900/50 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 placeholder="Team clipboard"
               />
               <button
@@ -115,7 +115,7 @@ export default function WorkspaceModal({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+          <div className="rounded-2xl border border-slate-700/80 bg-slate-950/70 p-5">
             <label
               className="block text-sm font-medium text-slate-300"
               htmlFor="workspace-select-modal"
@@ -129,6 +129,9 @@ export default function WorkspaceModal({
                 options={workspaceOptions}
                 value={selectedWorkspaceOption}
                 onChange={onWorkspaceSelect}
+                menuPortalTarget={
+                  typeof document !== "undefined" ? document.body : undefined
+                }
                 className="react-select-container"
                 classNamePrefix="react-select"
                 styles={{
@@ -146,6 +149,11 @@ export default function WorkspaceModal({
                   menu: (base) => ({
                     ...base,
                     backgroundColor: "#0f172a",
+                    zIndex: 9999,
+                  }),
+                  menuPortal: (base) => ({
+                    ...base,
+                    zIndex: 9999,
                   }),
                   option: (base, state) => ({
                     ...base,
@@ -168,7 +176,7 @@ export default function WorkspaceModal({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+          <div className="rounded-2xl border border-slate-700/80 bg-slate-950/70 p-5">
             <label
               className="block text-sm font-medium text-slate-300"
               htmlFor="invite-email-modal"
@@ -183,7 +191,7 @@ export default function WorkspaceModal({
                 onChange={(event) =>
                   onWorkspaceInviteEmailChange(event.target.value)
                 }
-                className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="min-w-0 flex-1 rounded-2xl border border-gray-700/40 bg-slate-900/50 px-4 py-3 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 placeholder="name@example.com"
               />
               <button
@@ -210,13 +218,13 @@ export default function WorkspaceModal({
           </div>
 
           {workspaceInfo && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
+            <div className="rounded-2xl border border-gray-800 bg-slate-950/90 p-4 text-sm text-slate-200">
               {workspaceInfo}
             </div>
           )}
 
           {pendingInvites.length > 0 && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm text-slate-200">
+            <div className="rounded-2xl border border-slate-700/80 bg-slate-950/70 p-4 text-sm text-slate-200">
               <div className="mb-3 flex items-center justify-between">
                 <span className="font-semibold text-white">
                   Pending Workspace Invites
@@ -229,7 +237,7 @@ export default function WorkspaceModal({
                 {pendingInvites.map((invite) => (
                   <div
                     key={invite.id}
-                    className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <p className="text-sm text-slate-300">

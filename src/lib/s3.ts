@@ -120,3 +120,31 @@ export const uploadFileToS3 = async (
 
   return getS3ObjectUrl(key);
 };
+
+export const uploadAvatarToS3 = async (
+  userId: string,
+  file: File,
+): Promise<string> => {
+  if (!s3Client) {
+    throw new Error("S3 is not configured.");
+  }
+
+  const extension = file.type.split("/")[1] || "png";
+  const key = `avatars/${sanitizeKeyPath(userId)}/${Date.now()}-${randomUUID()}.${sanitizeKeyPath(extension)}`;
+  const contentType = file.type || "image/png";
+  const arrayBuffer = await file.arrayBuffer();
+  const body = Buffer.from(arrayBuffer);
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: S3_BUCKET_NAME!,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      ContentLength: body.length,
+      ACL: "public-read",
+    }),
+  );
+
+  return getS3ObjectUrl(key);
+};

@@ -37,15 +37,15 @@ export default function HistoryPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-2 sm:px-4 py-4 sm:py-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 px-2 sm:px-4 py-4 sm:py-6"
       onClick={onClose}
     >
       <div className="absolute inset-0" />
       <div
-        className="relative w-full max-w-4xl overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl flex flex-col max-h-[95vh]"
+        className="relative w-full max-w-4xl overflow-hidden rounded-2xl sm:rounded-3xl border border-gray-800 bg-black shadow-2xl flex flex-col max-h-[95vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-2 sm:gap-4 border-b border-slate-800 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <div className="flex items-start justify-between gap-2 sm:gap-4 border-b border-gray-800 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <div>
             <h2 className="text-base sm:text-lg font-semibold text-white">
               Preview {isVideo ? "video" : "image"}
@@ -67,14 +67,14 @@ export default function HistoryPreviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white flex-shrink-0"
+            className="flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-gray-700 bg-black text-slate-300 transition hover:border-slate-600 hover:text-white flex-shrink-0"
             aria-label="Close preview"
           >
             <FaTimes className="h-3 sm:h-4 w-3 sm:w-4" />
           </button>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col p-3 sm:p-6">
-          <div className="flex-1 mx-auto w-full max-h-full overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900 p-2 sm:p-4">
+          <div className="flex-1 mx-auto w-full max-h-full overflow-hidden rounded-2xl sm:rounded-3xl border border-gray-800 bg-gray-900 p-2 sm:p-4">
             {isVideo ? (
               <video
                 controls
@@ -136,7 +136,7 @@ export default function HistoryPreviewModal({
                 )
               }
               disabled={downloadingIds.includes(item.id)}
-              className={`inline-flex items-center gap-1 sm:gap-2 rounded-xl sm:rounded-2xl border border-slate-700 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition ${downloadingIds.includes(item.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-slate-950 text-slate-200 hover:bg-slate-900"}`}
+              className={`inline-flex items-center gap-1 sm:gap-2 rounded-xl sm:rounded-2xl border border-gray-700 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition ${downloadingIds.includes(item.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-black text-slate-200 hover:bg-gray-900"}`}
             >
               {downloadingIds.includes(item.id) ? (
                 <svg
