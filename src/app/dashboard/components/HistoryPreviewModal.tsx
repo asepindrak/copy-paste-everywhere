@@ -37,27 +37,29 @@ export default function HistoryPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-4 py-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 px-2 sm:px-4 py-4 sm:py-6"
       onClick={onClose}
     >
       <div className="absolute inset-0" />
       <div
-        className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl"
+        className="relative w-full max-w-4xl overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl flex flex-col max-h-[95vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
+        <div className="flex items-start justify-between gap-2 sm:gap-4 border-b border-slate-800 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-base sm:text-lg font-semibold text-white">
               Preview {isVideo ? "video" : "image"}
             </h2>
             {item.title ? (
-              <p className="mt-1 text-sm text-slate-300">{item.title}</p>
+              <p className="mt-1 text-xs sm:text-sm text-slate-300 truncate">
+                {item.title}
+              </p>
             ) : null}
-            <p className="text-sm text-slate-400">
+            <p className="text-xs sm:text-sm text-slate-400">
               Preview a {isVideo ? "video" : "image"} from clipboard history.
             </p>
             {item.user && (
-              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+              <p className="mt-1 text-[10px] sm:text-xs uppercase tracking-[0.18em] text-slate-500">
                 {item.user.name || item.user.email}
               </p>
             )}
@@ -65,18 +67,18 @@ export default function HistoryPreviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white"
+            className="flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-600 hover:text-white flex-shrink-0"
             aria-label="Close preview"
           >
-            <FaTimes className="h-4 w-4" />
+            <FaTimes className="h-3 sm:h-4 w-3 sm:w-4" />
           </button>
         </div>
-        <div className="p-6">
-          <div className="mx-auto max-h-[70vh] w-full overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-4">
+        <div className="flex-1 overflow-hidden flex flex-col p-3 sm:p-6">
+          <div className="flex-1 mx-auto w-full max-h-full overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900 p-2 sm:p-4">
             {isVideo ? (
               <video
                 controls
-                className="mx-auto max-h-[62vh] w-full rounded-2xl bg-black object-contain"
+                className="mx-auto max-h-full w-full rounded-lg sm:rounded-2xl bg-black object-contain"
                 src={item.content}
                 playsInline
               />
@@ -87,22 +89,22 @@ export default function HistoryPreviewModal({
                 width={1200}
                 height={900}
                 unoptimized
-                className="mx-auto max-h-[62vh] w-full object-contain"
+                className="mx-auto max-h-full w-full object-contain"
               />
             )}
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-3 sm:mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => onCopy(item.content, item.id)}
               disabled={copyingIds.includes(item.id)}
-              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white transition ${copyingIds.includes(item.id) ? "bg-blue-500/70 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
+              className={`inline-flex items-center gap-1 sm:gap-2 rounded-xl sm:rounded-2xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white transition ${copyingIds.includes(item.id) ? "bg-blue-500/70 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
             >
               {copyingIds.includes(item.id) ? (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
+                  width="12"
+                  height="12"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -115,9 +117,14 @@ export default function HistoryPreviewModal({
                   <path d="M12 4v4" />
                 </svg>
               ) : (
-                <FaCopy className="h-4 w-4" />
+                <FaCopy className="h-3 sm:h-4 w-3 sm:w-4" />
               )}
-              {copyingIds.includes(item.id) ? "Copying..." : "Copy"}
+              <span className="hidden sm:inline">
+                {copyingIds.includes(item.id) ? "Copying..." : "Copy"}
+              </span>
+              <span className="sm:hidden">
+                {copyingIds.includes(item.id) ? "Copy..." : "Copy"}
+              </span>
             </button>
             <button
               type="button"
@@ -129,13 +136,13 @@ export default function HistoryPreviewModal({
                 )
               }
               disabled={downloadingIds.includes(item.id)}
-              className={`inline-flex items-center gap-2 rounded-2xl border border-slate-700 px-4 py-2 text-sm font-semibold transition ${downloadingIds.includes(item.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-slate-950 text-slate-200 hover:bg-slate-900"}`}
+              className={`inline-flex items-center gap-1 sm:gap-2 rounded-xl sm:rounded-2xl border border-slate-700 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition ${downloadingIds.includes(item.id) ? "bg-slate-800/70 text-slate-400 cursor-not-allowed" : "bg-slate-950 text-slate-200 hover:bg-slate-900"}`}
             >
               {downloadingIds.includes(item.id) ? (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
+                  width="12"
+                  height="12"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -148,9 +155,16 @@ export default function HistoryPreviewModal({
                   <path d="M12 4v4" />
                 </svg>
               ) : (
-                <FaDownload className="h-4 w-4" />
+                <FaDownload className="h-3 sm:h-4 w-3 sm:w-4" />
               )}
-              {downloadingIds.includes(item.id) ? "Downloading..." : "Download"}
+              <span className="hidden sm:inline">
+                {downloadingIds.includes(item.id)
+                  ? "Downloading..."
+                  : "Download"}
+              </span>
+              <span className="sm:hidden">
+                {downloadingIds.includes(item.id) ? "Down..." : "Download"}
+              </span>
             </button>
           </div>
         </div>

@@ -80,14 +80,14 @@ export default function LiveEditor({
   };
 
   return (
-    <main className="lg:col-span-2 space-y-6">
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl min-h-[600px]">
-        <div className="mb-4 flex items-center justify-between">
+    <main className="lg:col-span-2 min-w-0 w-full max-w-full space-y-6">
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl min-h-[480px] sm:min-h-[600px]">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <FaEdit className="h-5 w-5 text-blue-400" /> Live Editor
           </h2>
-          <div className="flex items-center gap-3">
-            <div className="flex bg-slate-950 rounded-2xl p-1 border border-slate-800 mr-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-2 bg-slate-950 rounded-2xl p-1 border border-slate-800 mr-0 sm:mr-2">
               <button
                 onClick={onCopyAll}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 ${copied ? "text-emerald-400 bg-emerald-500/10" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
@@ -213,7 +213,7 @@ export default function LiveEditor({
               </span>
             )}
             {isUploading && (
-              <div className="ml-4 flex min-w-[180px] flex-col gap-2">
+              <div className="ml-0 mt-3 flex w-full flex-col gap-2 sm:ml-4 sm:w-auto sm:min-w-[180px]">
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                   <div
                     className="h-full bg-blue-500 transition-all"
@@ -517,7 +517,7 @@ export default function LiveEditor({
               onPaste={onPasteEvent}
               id="live-editor-textarea"
               placeholder="Write or paste text here, or drag & drop a file..."
-              className="min-h-[400px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner custom-scrollbar"
+              className="min-h-[400px] w-full max-w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 p-6 text-lg text-slate-200 placeholder-slate-600 outline-none transition focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 shadow-inner custom-scrollbar break-words"
             />
           )}
           {isDragActive && (

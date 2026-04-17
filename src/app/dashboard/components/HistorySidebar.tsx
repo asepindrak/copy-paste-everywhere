@@ -42,6 +42,7 @@ interface HistorySidebarProps {
   setHistoryPreviewItem: (item: CopyItem | null) => void;
   isLoadingMore: boolean;
   hasMore: boolean;
+  scrollContainerRef: RefObject<HTMLDivElement | null>;
   loadMoreRef: RefObject<HTMLDivElement | null>;
   copiedHistoryId: string | null;
   copyingIds: string[];
@@ -72,6 +73,7 @@ export default function HistorySidebar({
   setHistoryPreviewItem,
   isLoadingMore,
   hasMore,
+  scrollContainerRef,
   loadMoreRef,
   copiedHistoryId,
   copyingIds,
@@ -166,8 +168,8 @@ export default function HistorySidebar({
   };
 
   return (
-    <aside className="space-y-6 flex flex-col h-[600px]">
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl flex flex-col h-full overflow-hidden">
+    <aside className="space-y-6 flex w-full min-w-0 max-w-full flex-col min-h-[520px] h-auto">
+      <section className="w-full min-w-0 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-6 shadow-xl flex flex-col h-full overflow-hidden">
         <div className="mb-4">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
@@ -225,7 +227,10 @@ export default function HistorySidebar({
           </div>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 min-w-0 space-y-4 overflow-y-auto pr-2 custom-scrollbar max-h-[55vh] lg:max-h-[62vh]"
+        >
           {history.length === 0 && !isLoadingMore ? (
             <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center mt-4">
               <p className="text-slate-500 text-sm">
@@ -240,9 +245,57 @@ export default function HistorySidebar({
                 {history.map((item, index) => (
                   <div
                     key={`${item.id}-${index}`}
-                    className="group relative rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
+                    className="group relative min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-3 sm:p-4 transition hover:border-blue-500/30 hover:bg-slate-900/50"
                   >
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      {editingTitleId === item.id ? (
+                        <div className="flex flex-1 flex-col gap-2">
+                          <input
+                            type="text"
+                            value={editingTitleValue}
+                            onChange={(e) =>
+                              setEditingTitleValue(e.target.value)
+                            }
+                            placeholder="Enter title..."
+                            className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-blue-500/50"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveTitle(item)}
+                              disabled={updatingTitleIds.includes(item.id)}
+                              className="rounded-2xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {updatingTitleIds.includes(item.id)
+                                ? "Saving..."
+                                : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditingTitle}
+                              className="rounded-2xl border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-1 items-center justify-between gap-3">
+                          <p className="truncate text-sm font-semibold text-slate-100">
+                            {item.title?.trim() || "Untitled"}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => startEditingTitle(item)}
+                            className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
+                            title="Edit title"
+                          >
+                            <FaEdit className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-3 mb-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
                       <div className="flex flex-1 min-w-0 flex-wrap items-center gap-2">
                         {isLocalPath(item.content) && (
                           <span
@@ -277,11 +330,11 @@ export default function HistorySidebar({
                           {getUserLabel(item)}
                         </span>
                       </div>
-                      <div className="flex flex-shrink-0 items-center gap-1 pl-3">
+                      <div className="flex flex-wrap items-center gap-1 pl-3">
                         <button
                           onClick={() => onCopy(item.content, item.id)}
                           disabled={copyingIds.includes(item.id)}
-                          className={`rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-0 transition group-hover:opacity-100 hover:bg-blue-600 hover:text-white ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                          className={`rounded-lg bg-blue-600/10 p-2 text-blue-400 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-blue-600 hover:text-white ${copyingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
                           title={
                             copyingIds.includes(item.id)
                               ? "Copying..."
@@ -353,7 +406,7 @@ export default function HistorySidebar({
                           isVideoContent(item.content)) && (
                           <button
                             onClick={() => setHistoryPreviewItem(item)}
-                            className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-0 transition group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
+                            className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
                             title={
                               isVideoContent(item.content)
                                 ? "Preview video"
@@ -380,7 +433,7 @@ export default function HistorySidebar({
                               )
                             }
                             disabled={downloadingIds.includes(item.id)}
-                            className={`rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-0 transition group-hover:opacity-100 hover:bg-slate-700 hover:text-white ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                            className={`rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-slate-700 hover:text-white ${downloadingIds.includes(item.id) ? "cursor-not-allowed opacity-60" : ""}`}
                             title={
                               downloadingIds.includes(item.id)
                                 ? "Downloading..."
@@ -477,73 +530,25 @@ export default function HistorySidebar({
                         </button>
                       </div>
                     </div>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      {editingTitleId === item.id ? (
-                        <div className="flex flex-1 flex-col gap-2">
-                          <input
-                            type="text"
-                            value={editingTitleValue}
-                            onChange={(e) =>
-                              setEditingTitleValue(e.target.value)
-                            }
-                            placeholder="Enter title..."
-                            className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-blue-500/50"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => saveTitle(item)}
-                              disabled={updatingTitleIds.includes(item.id)}
-                              className="rounded-2xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {updatingTitleIds.includes(item.id)
-                                ? "Saving..."
-                                : "Save"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelEditingTitle}
-                              className="rounded-2xl border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-1 items-center justify-between gap-3">
-                          <p className="truncate text-sm font-semibold text-slate-100">
-                            {item.title?.trim() || "Untitled"}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => startEditingTitle(item)}
-                            className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-800 text-slate-300 transition hover:bg-slate-700 hover:text-white"
-                            title="Edit title"
-                          >
-                            <FaEdit className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
                     {isVideoContent(item.content) ? (
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2">
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2 w-full overflow-hidden">
                         <div
-                          className="flex aspect-video w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-900 transition hover:bg-slate-800"
+                          className="flex min-w-0 aspect-video w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-900 transition hover:bg-slate-800 overflow-hidden"
                           onClick={() => setHistoryPreviewItem(item)}
                         >
                           <FaVideo className="h-10 w-10 text-purple-400/50" />
                         </div>
                         {item.fileName && (
-                          <div className="mt-3 flex items-center gap-2 px-1 overflow-hidden">
+                          <div className="mt-3 flex min-w-0 items-center gap-2 px-1 overflow-hidden">
                             {getFileIcon(item.content)}
-                            <p className="truncate text-sm text-slate-300">
+                            <p className="min-w-0 truncate break-words text-sm text-slate-300">
                               {item.fileName}
                             </p>
                           </div>
                         )}
                       </div>
                     ) : isImageContent(item.content) ? (
-                      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 w-full">
                         <div
                           className="relative aspect-video w-full cursor-pointer overflow-hidden bg-slate-900 transition hover:opacity-90"
                           onClick={() => setHistoryPreviewItem(item)}
@@ -557,22 +562,22 @@ export default function HistorySidebar({
                           />
                         </div>
                         {item.fileName && (
-                          <div className="flex items-center gap-2 p-3 overflow-hidden border-t border-slate-800/50">
+                          <div className="flex min-w-0 items-center gap-2 p-3 overflow-hidden border-t border-slate-800/50">
                             {getFileIcon(item.content)}
-                            <p className="truncate text-sm text-slate-300">
+                            <p className="min-w-0 truncate break-words text-sm text-slate-300">
                               {item.fileName}
                             </p>
                           </div>
                         )}
                       </div>
                     ) : isRemoteFile(item.content) ? (
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 transition hover:bg-slate-900/80">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600/10 text-blue-400">
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 sm:p-4 transition hover:bg-slate-900/80 w-full overflow-hidden">
+                        <div className="flex min-w-0 items-center gap-3 overflow-hidden w-full">
+                          <div className="flex h-10 w-10 shrink-0 min-w-0 items-center justify-center rounded-xl bg-blue-600/10 text-blue-400">
                             {getFileIcon(item.content)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-slate-200">
+                            <p className="min-w-0 truncate break-words text-sm font-medium text-slate-200">
                               {item.fileName ??
                                 getFileNameFromUrl(item.content)}
                             </p>
@@ -583,12 +588,12 @@ export default function HistorySidebar({
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                        <div className="flex items-start gap-3">
+                      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 sm:p-4 w-full overflow-hidden">
+                        <div className="flex min-w-0 items-start gap-3 overflow-hidden">
                           <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-slate-500">
                             <FaFileAlt className="h-4 w-4" />
                           </div>
-                          <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+                          <p className="line-clamp-4 w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-relaxed text-slate-300">
                             {item.content || (
                               <span className="italic text-slate-600">
                                 (Empty)

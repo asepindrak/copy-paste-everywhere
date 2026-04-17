@@ -40,6 +40,7 @@ import VideoGalleryModal from "./components/VideoGalleryModal";
 import HistoryPreviewModal from "./components/HistoryPreviewModal";
 import LiveEditor from "./components/LiveEditor";
 import HistorySidebar from "./components/HistorySidebar";
+import PWAInstallButton from "./components/PWAInstallButton";
 import type { CopyItem, FetchHistoryResponse } from "../../types/dashboard";
 
 interface ClipboardUpdateAck {
@@ -406,6 +407,7 @@ export default function DashboardPage() {
   const debouncedSearchRef = useRef<string>(debouncedSearch);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const historyScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isLoadingMoreRef = useRef(isLoadingMore);
   const hasMoreRef = useRef(hasMore);
 
@@ -1009,7 +1011,10 @@ export default function DashboardPage() {
           loadHistory(nextCursor, false, debouncedSearch);
         }
       },
-      { threshold: 0.1 },
+      {
+        threshold: 0.1,
+        root: historyScrollContainerRef.current,
+      },
     );
 
     if (loadMoreRef.current) {
@@ -2107,218 +2112,192 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-10 rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <div className="flex-shrink-0">
-                <Image
-                  src="/logo.png"
-                  alt="Logo"
-                  width={100}
-                  height={100}
-                  className="rounded-2xl shadow-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                  Copy Paste <span className="text-blue-500">Everywhere</span>
-                </h1>
-                <p className="max-w-2xl text-lg text-slate-400">
-                  Synchronize clipboard across devices privately and in
-                  real-time. Copy/paste text, images, or videos, and drag & drop
-                  an image or video directly into the editor.
-                </p>
-                <div className="text-sm text-slate-500">
-                  App version {appVersion}
-                </div>
-              </div>
-            </div>
-
-            <div className="relative flex items-center gap-4 rounded-2xl p-4">
-              <button
-                type="button"
-                onClick={() => setIsProfileMenuOpen((current) => !current)}
-                className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950 px-4 py-2 transition hover:border-blue-500"
-                aria-expanded={isProfileMenuOpen}
-                aria-haspopup="menu"
-              >
-                <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">
-                  {(session?.user?.name ??
-                    session?.user?.email ??
-                    "U")[0]?.toUpperCase()}
-                </div>
-                <div className="hidden text-left sm:block">
-                  <p className="text-sm font-semibold text-white">
-                    {session?.user?.name ?? session?.user?.email ?? "User"}
-                  </p>
-                  <p className="text-xs text-slate-400">View profile</p>
-                </div>
-                <span className="hidden text-xs text-slate-400 sm:block">
-                  ▾
-                </span>
-              </button>
-
-              {isProfileMenuOpen && (
-                <div
-                  ref={profileMenuRef}
-                  className="absolute right-0 top-full z-20 mt-3 w-72 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl"
-                >
-                  <div className="p-4">
-                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                      Profile
-                    </p>
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center text-lg font-bold text-white">
-                        {(session?.user?.name ??
-                          session?.user?.email ??
-                          "U")[0]?.toUpperCase()}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-white">
-                          {session?.user?.name ??
-                            session?.user?.email ??
-                            "User"}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {session?.user?.email ?? "No email available"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="border-t border-slate-800" />
-                  <div className="p-4 space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsClearAllModalOpen(true);
-                        setIsProfileMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500 hover:text-white"
-                      title="Clear personal clipboard"
-                      aria-label="Clear personal clipboard"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 group-hover:bg-white/20">
-                        <FaTrash className="h-4 w-4" />
-                      </div>
-                      Clear clipboard
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => signOut({ callbackUrl: "/login" })}
-                      className="w-full flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
-                      title="Logout"
-                      aria-label="Logout"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
-                        <FaSignOutAlt className="h-4 w-4" />
-                      </div>
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-800 bg-slate-950/95 px-3 py-2 shadow-lg backdrop-blur sm:px-6 sm:py-3 lg:px-8">
+        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-2 sm:gap-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={36}
+              height={36}
+              className="rounded-xl shadow-lg"
+            />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold tracking-tight text-white sm:text-lg">
+                Copy Paste <span className="text-blue-500">Everywhere</span>
+              </h1>
+              <p className="text-[10px] text-slate-500 sm:text-xs">v{appVersion}</p>
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-slate-800 pt-6">
+          <div className="relative flex items-center gap-2 sm:gap-3">
+            <PWAInstallButton />
+            <button
+              type="button"
+              onClick={() => setIsProfileMenuOpen((current) => !current)}
+              className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1.5 transition hover:border-blue-500 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2"
+              aria-expanded={isProfileMenuOpen}
+              aria-haspopup="menu"
+            >
+              <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white sm:h-9 sm:w-9">
+                {(session?.user?.name ??
+                  session?.user?.email ??
+                  "U")[0]?.toUpperCase()}
+              </div>
+              <div className="hidden text-left sm:block">
+                <p className="text-sm font-semibold text-white">
+                  {session?.user?.name ?? session?.user?.email ?? "User"}
+                </p>
+              </div>
+              <span className="hidden text-xs text-slate-400 sm:block">▾</span>
+            </button>
+
+            {isProfileMenuOpen && (
+              <div
+                ref={profileMenuRef}
+                className="absolute right-0 top-full z-20 mt-3 w-[18rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl"
+              >
+                <div className="p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                    Profile
+                  </p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center text-lg font-bold text-white">
+                      {(session?.user?.name ??
+                        session?.user?.email ??
+                        "U")[0]?.toUpperCase()}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-white">
+                        {session?.user?.name ??
+                          session?.user?.email ??
+                          "User"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {session?.user?.email ?? "No email available"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t border-slate-800" />
+                <div className="p-4 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsClearAllModalOpen(true);
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500 hover:text-white"
+                    title="Clear personal clipboard"
+                    aria-label="Clear personal clipboard"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 group-hover:bg-white/20">
+                      <FaTrash className="h-4 w-4" />
+                    </div>
+                    Clear clipboard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    className="w-full flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+                    title="Logout"
+                    aria-label="Logout"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                      <FaSignOutAlt className="h-4 w-4" />
+                    </div>
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl min-w-0 px-4 pb-10 pt-20 sm:px-6 sm:pt-28 lg:px-8">
+        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl sm:p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <div
                 className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
               />
-              <span className="text-sm font-medium text-slate-300">
+              <span className="text-xs font-medium text-slate-300 sm:text-sm">
                 {isConnected ? "Realtime Connected" : "Realtime Disconnected"}
               </span>
             </div>
             <div className="h-4 w-px bg-slate-800 hidden sm:block" />
-            <span className="text-sm text-slate-400">
-              {lastSavedAt
-                ? `Last update: ${lastSavedAt}`
-                : "No synchronization yet"}
+            <span className="text-xs text-slate-400 sm:text-sm">
+              {lastSavedAt ? `Last update: ${lastSavedAt}` : "No update yet"}
             </span>
           </div>
-        </header>
 
-        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-white">
-                Workspace & Invite Panel
-              </h2>
-              <p className="text-sm text-slate-400">
-                Create shared workspaces or invite teammates to access the same
-                shared clipboard.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto]">
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2">
-                <label
-                  className="text-xs uppercase tracking-[0.2em] text-slate-500"
-                  htmlFor="workspace-select"
-                >
-                  Active workspace
-                </label>
-                <div className="ml-2 min-w-[220px]">
-                  <Select
-                    instanceId="workspace-select"
-                    inputId="workspace-select-input"
-                    options={workspaceOptions}
-                    value={selectedWorkspaceOption}
-                    onChange={handleWorkspaceSelect}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                    styles={{
-                      control: (base) => ({
-                        ...base,
-                        backgroundColor: "#0f172a",
-                        borderColor: "#334155",
-                        color: "#fff",
-                        minHeight: "42px",
-                      }),
-                      singleValue: (base) => ({
-                        ...base,
-                        color: "#fff",
-                      }),
-                      menu: (base) => ({
-                        ...base,
-                        backgroundColor: "#0f172a",
-                      }),
-                      option: (base, state) => ({
-                        ...base,
-                        backgroundColor: state.isFocused
-                          ? "#1e293b"
-                          : "#0f172a",
-                        color: state.isSelected ? "#fff" : "#cbd5e1",
-                      }),
-                    }}
-                    theme={(theme) => ({
-                      ...theme,
-                      borderRadius: 12,
-                      colors: {
-                        ...theme.colors,
-                        primary25: "#1e293b",
-                        primary: "#3b82f6",
-                        neutral0: "#0f172a",
-                        neutral80: "#e2e8f0",
-                      },
-                    })}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsWorkspaceModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+          <div className="flex items-center gap-2 sm:grid sm:gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto]">
+            <div className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-slate-950/80 px-2 py-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:px-3 sm:py-2">
+              <label
+                className="hidden text-xs uppercase tracking-[0.2em] text-slate-500 sm:block"
+                htmlFor="workspace-select"
               >
-                <FaEdit className="h-4 w-4" />
-                Manage workspace
-              </button>
+                Active workspace
+              </label>
+              <div className="min-w-0 flex-1 sm:min-w-[220px]">
+                <Select
+                  instanceId="workspace-select"
+                  inputId="workspace-select-input"
+                  options={workspaceOptions}
+                  value={selectedWorkspaceOption}
+                  onChange={handleWorkspaceSelect}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      backgroundColor: "#0f172a",
+                      borderColor: "#334155",
+                      color: "#fff",
+                      minHeight: "42px",
+                    }),
+                    singleValue: (base) => ({
+                      ...base,
+                      color: "#fff",
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      backgroundColor: "#0f172a",
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isFocused ? "#1e293b" : "#0f172a",
+                      color: state.isSelected ? "#fff" : "#cbd5e1",
+                    }),
+                  }}
+                  theme={(theme) => ({
+                    ...theme,
+                    borderRadius: 12,
+                    colors: {
+                      ...theme.colors,
+                      primary25: "#1e293b",
+                      primary: "#3b82f6",
+                      neutral0: "#0f172a",
+                      neutral80: "#e2e8f0",
+                    },
+                  })}
+                />
+              </div>
             </div>
-          </div>
 
+            <button
+              type="button"
+              onClick={() => setIsWorkspaceModalOpen(true)}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-blue-600 p-2 text-white transition hover:bg-blue-500 sm:h-fit sm:self-start sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs sm:font-semibold lg:self-center"
+              title="Manage workspace"
+              aria-label="Manage workspace"
+            >
+              <FaEdit className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Manage workspace</span>
+            </button>
+          </div>
           {workspaceInfo && (
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
               {workspaceInfo}
@@ -2634,7 +2613,7 @@ export default function DashboardPage() {
 
         {toastMessage && <DashboardToast message={toastMessage} />}
 
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-8 lg:grid-cols-3">
           <LiveEditor
             content={content}
             contentType={contentType}
@@ -2677,6 +2656,7 @@ export default function DashboardPage() {
             setHistoryPreviewItem={setHistoryPreviewItem}
             isLoadingMore={isLoadingMore}
             hasMore={hasMore}
+            scrollContainerRef={historyScrollContainerRef}
             loadMoreRef={loadMoreRef}
             copiedHistoryId={copiedHistoryId}
             copyingIds={copyingIds}
