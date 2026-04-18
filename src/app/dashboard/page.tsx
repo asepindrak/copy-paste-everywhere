@@ -1450,6 +1450,49 @@ export default function DashboardPage() {
     [selectedWorkspaceId],
   );
 
+  const handleManualSave = useCallback(() => {
+    if (isLocalPath(content)) {
+      setError(
+        "Local file paths cannot be saved manually. Use drag & drop or paste file data instead.",
+      );
+      return;
+    }
+
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = null;
+    }
+
+    const socket = socketRef.current;
+    if (!socket?.connected) {
+      setError(
+        "Realtime connection is not connected. Please wait a moment and try again.",
+      );
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+
+    socket.emit(
+      "clipboard:update",
+      {
+        content,
+        workspaceId: selectedWorkspaceId ?? undefined,
+      },
+      (ack: ClipboardUpdateAck) => {
+        if (ack?.error) {
+          setError(ack.error);
+        } else if (ack?.item) {
+          lastContentRef.current = content;
+          setLastSavedAt(new Date(ack.item.createdAt).toLocaleTimeString());
+          setError(null);
+        }
+        setIsSaving(false);
+      },
+    );
+  }, [content, selectedWorkspaceId]);
+
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const val = event.target.value;
     setContent(val);
@@ -2843,6 +2886,7 @@ export default function DashboardPage() {
               onCopyAll={handleCopyAll}
               onPaste={handlePaste}
               onClear={handleClear}
+              onSave={handleManualSave}
               onChange={handleChange}
               onPasteEvent={handlePasteEvent}
               onDragOver={handleDragOver}

@@ -43,6 +43,38 @@ interface ClipboardUpdateAck {
   error?: string;
 }
 
+const normalizeText = (value: string) =>
+  value
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const getWordTokens = (value: string) =>
+  normalizeText(value)
+    .toLowerCase()
+    .replace(/[\W_]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+const getTokenOverlap = (a: string[], b: string[]) => {
+  const setB = new Set(b);
+  return a.filter((token) => setB.has(token)).length;
+};
+
+const isTextContent = (value: string) => {
+  if (isImageDataUrl(value)) return false;
+  if (/^data:video\/[a-zA-Z]+;base64,/.test(value)) return false;
+  if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|avif|svg|mp4|webm|ogg|mov|avi|mkv|m4v)(\?.*)?$/i.test(value)) return false;
+  if (/^https?:\/\/.+\.[a-z0-9]+(\?.*)?$/i.test(value)) return false;
+  return true;
+};
+
+const isRecentItem = (
+  timestamp: Date,
+  thresholdMs = 5 * 60 * 1000,
+) => Date.now() - timestamp.getTime() <= thresholdMs;
+
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
@@ -251,7 +283,88 @@ io.on("connection", async (socket) => {
             ? await uploadBase64ImageToS3(userId, payload.content)
             : payload.content;
 
-        const item = await getPrisma().copyItem.create({
+        const prisma = getPrisma();
+        const normalizedContent = normalizeText(contentToStore);
+        const normalizedContentWords = getWordTokens(normalizedContent);
+        const recentItems = await prisma.copyItem.findMany({
+          where: {
+            userId,
+            workspaceId: allowedWorkspaceId ? payload.workspaceId : null,
+            updatedAt: {
+              gte: new Date(Date.now() - 2 * 60 * 1000),
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+          include: { user: true },
+        });
+
+        const matchingItem = recentItems.find((item) => {
+          if (!isTextContent(item.content) || !isTextContent(normalizedContent)) {
+            return false;
+          }
+
+          const normalizedItem = normalizeText(item.content);
+          const normalizedItemWords = getWordTokens(normalizedItem);
+          const overlap = getTokenOverlap(normalizedContentWords, normalizedItemWords);
+          const minWordCount = Math.min(
+            normalizedContentWords.length,
+            normalizedItemWords.length,
+          );
+          const overlapRatio = minWordCount > 0 ? overlap / minWordCount : 0;
+
+          return (
+            normalizedItem === normalizedContent ||
+            normalizedItem.includes(normalizedContent) ||
+            normalizedContent.includes(normalizedItem) ||
+            overlapRatio >= 0.75 ||
+            (normalizedItemWords.length > 0 &&
+              normalizedContentWords.length > 0 &&
+              normalizedItemWords.every((word) =>
+                normalizedContentWords.includes(word),
+              )) ||
+            (normalizedItemWords.length > 0 &&
+              normalizedContentWords.length > 0 &&
+              normalizedContentWords.every((word) =>
+                normalizedItemWords.includes(word),
+              ))
+          );
+        });
+
+        if (matchingItem) {
+          const updatedItem = await prisma.copyItem.update({
+            where: { id: matchingItem.id },
+            data: { content: contentToStore },
+            include: { user: true },
+          });
+
+          const result = {
+            id: updatedItem.id,
+            content: updatedItem.content,
+            title: (updatedItem as any).title ?? null,
+            fileName: updatedItem.fileName,
+            fileSize: updatedItem.fileSize,
+            userId: updatedItem.userId,
+            user: {
+              id: updatedItem.user.id,
+              name: updatedItem.user.name,
+              email: updatedItem.user.email,
+            },
+            workspaceId: updatedItem.workspaceId,
+            createdAt: updatedItem.createdAt.toISOString(),
+          };
+
+          const targetRoom = allowedWorkspaceId
+            ? `workspace:${payload.workspaceId}`
+            : room;
+
+          console.log(
+            "Clipboard update matched a recent text item and updated it instead of creating a duplicate.",
+          );
+          io.to(targetRoom).emit("clipboard:updated", result);
+          return callback({ item: result });
+        }
+
+        const item = await prisma.copyItem.create({
           data: {
             content: contentToStore,
             userId,
