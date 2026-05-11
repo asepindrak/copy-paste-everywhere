@@ -103,15 +103,43 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const rawTitle = body?.title;
-    const title =
-      typeof rawTitle === "string" && rawTitle.trim().length > 0
-        ? rawTitle.trim()
-        : null;
+    const hasTitle = Object.prototype.hasOwnProperty.call(body ?? {}, "title");
+    const hasContent = Object.prototype.hasOwnProperty.call(
+      body ?? {},
+      "content",
+    );
+
+    if (!hasTitle && !hasContent) {
+      return NextResponse.json(
+        { error: "No update data provided" },
+        { status: 400 },
+      );
+    }
+
+    const data: { title?: string | null; content?: string } = {};
+
+    if (hasTitle) {
+      const rawTitle = body?.title;
+      data.title =
+        typeof rawTitle === "string" && rawTitle.trim().length > 0
+          ? rawTitle.trim()
+          : null;
+    }
+
+    if (hasContent) {
+      if (typeof body?.content !== "string") {
+        return NextResponse.json(
+          { error: "Content must be a string" },
+          { status: 400 },
+        );
+      }
+
+      data.content = body.content;
+    }
 
     const updatedItem = await prisma.copyItem.update({
       where: { id },
-      data: { title },
+      data,
       include: { user: true },
     });
 
@@ -135,9 +163,9 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    console.error("Failed to update copy item title:", error);
+    console.error("Failed to update copy item:", error);
     return NextResponse.json(
-      { error: "Failed to update copy item title" },
+      { error: "Failed to update copy item" },
       { status: 500 },
     );
   }

@@ -6,6 +6,18 @@ import { getWorkspaceByIdIfMember } from "@/lib/workspace";
 import { MAX_S3_UPLOAD_SIZE, s3Client, uploadFileToS3, useS3 } from "@/lib/s3";
 import { getSocketServer } from "@/lib/socket";
 
+const getDefaultTitle = (fileName: string, content: string) => {
+  const trimmedFileName = fileName.trim();
+  if (trimmedFileName) return trimmedFileName;
+
+  try {
+    const parsed = new URL(content);
+    return decodeURIComponent(parsed.pathname.split("/").pop() || "download");
+  } catch {
+    return "download";
+  }
+};
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
 
@@ -54,6 +66,7 @@ export async function POST(req: NextRequest) {
     const item = await prisma.copyItem.create({
       data: {
         content: url,
+        title: getDefaultTitle(fileName, url),
         fileName,
         fileSize,
         userId: session.user.id,

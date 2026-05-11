@@ -43,6 +43,7 @@ import LiveEditor from "./components/LiveEditor";
 import HistorySidebar from "./components/HistorySidebar";
 import PWAInstallButton from "./components/PWAInstallButton";
 import ProfileEditModal from "./components/ProfileEditModal";
+import DeleteClipboardItemModal from "./components/DeleteClipboardItemModal";
 import type { CopyItem, FetchHistoryResponse } from "../../types/dashboard";
 
 interface ClipboardUpdateAck {
@@ -204,7 +205,12 @@ export default function DashboardPage() {
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const [currentFileSize, setCurrentFileSize] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<
-    Array<{ id: string; name: string }>
+    Array<{
+      id: string;
+      name: string;
+      ownerId: string;
+      owner?: { id: string; name?: string | null; email: string } | null;
+    }>
   >([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
     null,
@@ -258,6 +264,10 @@ export default function DashboardPage() {
   const [workspaceInfo, setWorkspaceInfo] = useState<string | null>(null);
   const [isWorkspaceSaving, setIsWorkspaceSaving] = useState(false);
   const [isInviteSaving, setIsInviteSaving] = useState(false);
+  const [isWorkspaceDeleting, setIsWorkspaceDeleting] = useState(false);
+  const [isWorkspaceLeaving, setIsWorkspaceLeaving] = useState(false);
+  const [workspaceDeleteConfirmation, setWorkspaceDeleteConfirmation] =
+    useState("");
   const [acceptingInviteId, setAcceptingInviteId] = useState<string | null>(
     null,
   );
@@ -292,12 +302,15 @@ export default function DashboardPage() {
   const [historyPreviewItem, setHistoryPreviewItem] = useState<CopyItem | null>(
     null,
   );
+  const [deleteConfirmationItem, setDeleteConfirmationItem] =
+    useState<CopyItem | null>(null);
   const [clearAllConfirmation, setClearAllConfirmation] = useState("");
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [copyingIds, setCopyingIds] = useState<string[]>([]);
   const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
   const [updatingTitleIds, setUpdatingTitleIds] = useState<string[]>([]);
+  const [updatingContentIds, setUpdatingContentIds] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileEditModalOpen, setIsProfileEditModalOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
@@ -317,10 +330,17 @@ export default function DashboardPage() {
     label: string;
   };
 
-  const activeWorkspaceName = selectedWorkspaceId
-    ? (workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
-        ?.name ?? null)
+  const activeWorkspace = selectedWorkspaceId
+    ? (workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
+      null)
     : null;
+  const activeWorkspaceName = activeWorkspace?.name ?? null;
+  const activeWorkspaceOwnerLabel =
+    activeWorkspace?.owner?.name || activeWorkspace?.owner?.email || null;
+  const canDeleteActiveWorkspace =
+    Boolean(activeWorkspace) && activeWorkspace?.ownerId === session?.user?.id;
+  const canLeaveActiveWorkspace =
+    Boolean(activeWorkspace) && activeWorkspace?.ownerId !== session?.user?.id;
 
   const workspaceOptions = useMemo<WorkspaceOption[]>(
     () => [
@@ -374,6 +394,7 @@ export default function DashboardPage() {
       const nextId = option?.value ? option.value : null;
       if (nextId !== selectedWorkspaceIdRef.current) {
         resetStates();
+        setWorkspaceDeleteConfirmation("");
         setSelectedWorkspaceId(nextId);
       }
     },
@@ -624,6 +645,94 @@ export default function DashboardPage() {
       );
     } finally {
       setIsWorkspaceSaving(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!activeWorkspace) {
+      setWorkspaceInfo("Select a workspace before deleting.");
+      return;
+    }
+
+    if (!canDeleteActiveWorkspace) {
+      setWorkspaceInfo("Only the workspace owner can delete this workspace.");
+      return;
+    }
+
+    if (workspaceDeleteConfirmation.trim() !== activeWorkspace.name) {
+      setWorkspaceInfo("Workspace name confirmation does not match.");
+      return;
+    }
+
+    setIsWorkspaceDeleting(true);
+    setWorkspaceInfo(null);
+
+    try {
+      const res = await fetch(`/api/workspaces/${activeWorkspace.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmationName: workspaceDeleteConfirmation.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete workspace.");
+      }
+
+      setWorkspaceDeleteConfirmation("");
+      clearSelectedWorkspaceId();
+      resetStates();
+      await loadWorkspaces();
+      await loadPendingInvites();
+      setWorkspaceInfo("Workspace deleted successfully.");
+      showToast("Workspace deleted");
+    } catch (error) {
+      setWorkspaceInfo(
+        error instanceof Error ? error.message : "Unable to delete workspace.",
+      );
+    } finally {
+      setIsWorkspaceDeleting(false);
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    if (!activeWorkspace) {
+      setWorkspaceInfo("Select a workspace before leaving.");
+      return;
+    }
+
+    if (!canLeaveActiveWorkspace) {
+      setWorkspaceInfo("Workspace owner cannot leave their own workspace.");
+      return;
+    }
+
+    setIsWorkspaceLeaving(true);
+    setWorkspaceInfo(null);
+
+    try {
+      const res = await fetch(`/api/workspaces/${activeWorkspace.id}/leave`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to leave workspace.");
+      }
+
+      setWorkspaceDeleteConfirmation("");
+      clearSelectedWorkspaceId();
+      resetStates();
+      await loadWorkspaces();
+      setWorkspaceInfo(`You left ${activeWorkspace.name}.`);
+      showToast("Left workspace");
+    } catch (error) {
+      setWorkspaceInfo(
+        error instanceof Error ? error.message : "Unable to leave workspace.",
+      );
+    } finally {
+      setIsWorkspaceLeaving(false);
     }
   };
 
@@ -1813,6 +1922,63 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUpdateContent = async (id: string, nextContent: string) => {
+    setUpdatingContentIds((prev) => [...prev, id]);
+
+    try {
+      const response = await fetch(`/api/copy-items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: nextContent }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data?.error || "Failed to update content.");
+      }
+
+      const data = await response.json();
+      const updatedItem = data.item as CopyItem;
+
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                content: updatedItem.content,
+                fileName: updatedItem.fileName,
+                fileSize: updatedItem.fileSize,
+              }
+            : item,
+        ),
+      );
+
+      setHistoryPreviewItem((prev) =>
+        prev?.id === id
+          ? {
+              ...prev,
+              content: updatedItem.content,
+              fileName: updatedItem.fileName,
+              fileSize: updatedItem.fileSize,
+            }
+          : prev,
+      );
+
+      showToast("Text updated");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update content. Please try again.",
+      );
+      throw error;
+    } finally {
+      setUpdatingContentIds((prev) =>
+        prev.filter((updateId) => updateId !== id),
+      );
+    }
+  };
+
   const handlePasteEvent = async (
     event: ClipboardEvent<HTMLTextAreaElement>,
   ) => {
@@ -2123,6 +2289,21 @@ export default function DashboardPage() {
     setTimeout(() => setCleared(false), 2000);
   };
 
+  const requestDelete = async (id: string) => {
+    if (deletingIds.includes(id)) return;
+
+    const item =
+      history.find((historyItem) => historyItem.id === id) ||
+      imageGalleryItems.find((galleryItem) => galleryItem.id === id) ||
+      fileGalleryItems.find((galleryItem) => galleryItem.id === id) ||
+      videoGalleryItems.find((galleryItem) => galleryItem.id === id) ||
+      (historyPreviewItem?.id === id ? historyPreviewItem : null);
+
+    if (item) {
+      setDeleteConfirmationItem(item);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (deletingIds.includes(id)) return;
 
@@ -2140,6 +2321,12 @@ export default function DashboardPage() {
       }
 
       setHistory((prev) => prev.filter((item) => item.id !== id));
+      setImageGalleryItems((prev) => prev.filter((item) => item.id !== id));
+      setFileGalleryItems((prev) => prev.filter((item) => item.id !== id));
+      setVideoGalleryItems((prev) => prev.filter((item) => item.id !== id));
+      setHistoryPreviewItem((prev) => (prev?.id === id ? null : prev));
+      setDeleteConfirmationItem(null);
+      showToast("Clipboard item deleted");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -2587,6 +2774,7 @@ export default function DashboardPage() {
           {isWorkspaceModalOpen && (
             <WorkspaceModal
               activeWorkspaceName={activeWorkspaceName}
+              activeWorkspaceOwnerLabel={activeWorkspaceOwnerLabel}
               workspaceOptions={workspaceOptions}
               selectedWorkspaceOption={selectedWorkspaceOption}
               workspaceCreateName={workspaceCreateName}
@@ -2595,14 +2783,27 @@ export default function DashboardPage() {
               pendingInvites={pendingInvites}
               isWorkspaceSaving={isWorkspaceSaving}
               isInviteSaving={isInviteSaving}
+              isWorkspaceDeleting={isWorkspaceDeleting}
+              isWorkspaceLeaving={isWorkspaceLeaving}
               acceptingInviteId={acceptingInviteId}
-              onClose={() => setIsWorkspaceModalOpen(false)}
+              canDeleteActiveWorkspace={canDeleteActiveWorkspace}
+              canLeaveActiveWorkspace={canLeaveActiveWorkspace}
+              workspaceDeleteConfirmation={workspaceDeleteConfirmation}
+              onClose={() => {
+                setIsWorkspaceModalOpen(false);
+                setWorkspaceDeleteConfirmation("");
+              }}
               onWorkspaceCreateNameChange={setWorkspaceCreateName}
               onWorkspaceInviteEmailChange={setWorkspaceInviteEmail}
+              onWorkspaceDeleteConfirmationChange={
+                setWorkspaceDeleteConfirmation
+              }
               onWorkspaceSelect={handleWorkspaceSelect}
               onCreateWorkspace={handleCreateWorkspace}
               onSendInvite={handleSendInvite}
               onAcceptInvite={handleAcceptInvite}
+              onDeleteWorkspace={handleDeleteWorkspace}
+              onLeaveWorkspace={handleLeaveWorkspace}
             />
           )}
 
@@ -2658,7 +2859,7 @@ export default function DashboardPage() {
             onPreviewImageIndexChange={setPreviewImageIndex}
             onCopy={handleCopy}
             onDownload={downloadContent}
-            onDelete={handleDelete}
+            onDelete={requestDelete}
             getFileNameFromUrl={getFileNameFromUrl}
             getFileType={getFileType}
             getFileSize={getFileSize}
@@ -2666,12 +2867,15 @@ export default function DashboardPage() {
           />
 
           <HistoryPreviewModal
+            key={historyPreviewItem?.id ?? "closed"}
             item={historyPreviewItem}
             onClose={() => setHistoryPreviewItem(null)}
             onCopy={handleCopy}
             onDownload={downloadContent}
+            onUpdateContent={handleUpdateContent}
             copyingIds={copyingIds}
             downloadingIds={downloadingIds}
+            updatingContentIds={updatingContentIds}
             getFileNameFromUrl={getFileNameFromUrl}
           />
 
@@ -2689,7 +2893,7 @@ export default function DashboardPage() {
             onSearchChange={setVideoGallerySearch}
             onCopy={handleCopy}
             onDownload={downloadContent}
-            onDelete={handleDelete}
+            onDelete={requestDelete}
             getFileNameFromUrl={getFileNameFromUrl}
             getFileSize={getFileSize}
           />
@@ -2855,10 +3059,33 @@ export default function DashboardPage() {
             onSearchChange={setFileGallerySearch}
             onCopy={handleCopy}
             onDownload={downloadContent}
-            onDelete={handleDelete}
+            onDelete={requestDelete}
             getFileNameFromUrl={getFileNameFromUrl}
             getFileType={getFileType}
             getFileSize={getFileSize}
+          />
+
+          <DeleteClipboardItemModal
+            item={deleteConfirmationItem}
+            isDeleting={
+              deleteConfirmationItem
+                ? deletingIds.includes(deleteConfirmationItem.id)
+                : false
+            }
+            onClose={() => {
+              if (
+                deleteConfirmationItem &&
+                deletingIds.includes(deleteConfirmationItem.id)
+              ) {
+                return;
+              }
+              setDeleteConfirmationItem(null);
+            }}
+            onConfirm={() => {
+              if (deleteConfirmationItem) {
+                void handleDelete(deleteConfirmationItem.id);
+              }
+            }}
           />
 
           {error && (
@@ -2909,7 +3136,7 @@ export default function DashboardPage() {
               onOpenFileGallery={() => setIsFileGalleryOpen(true)}
               onOpenVideoGallery={() => setIsVideoGalleryOpen(true)}
               onCopy={handleCopy}
-              onDelete={handleDelete}
+              onDelete={requestDelete}
               onDownload={downloadContent}
               setHistoryPreviewItem={setHistoryPreviewItem}
               isLoadingMore={isLoadingMore}

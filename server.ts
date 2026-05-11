@@ -70,6 +70,40 @@ const isTextContent = (value: string) => {
   return true;
 };
 
+const getFileNameFromContent = (value: string) => {
+  try {
+    const parsed = new URL(value);
+    const fileName = parsed.pathname.split("/").pop();
+    return fileName ? decodeURIComponent(fileName) : null;
+  } catch {
+    const fileName = value.split(/[/\\]/).pop();
+    return fileName && fileName.includes(".") ? fileName : null;
+  }
+};
+
+const getTextTitle = (content: string, maxLength = 80) => {
+  const firstLine = content
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/\s+/g, " "))
+    .find(Boolean);
+
+  if (!firstLine) return null;
+  return firstLine.length > maxLength
+    ? `${firstLine.slice(0, maxLength - 3).trimEnd()}...`
+    : firstLine;
+};
+
+const getDefaultTitle = (content: string, fileName?: string | null) => {
+  const trimmedFileName = fileName?.trim();
+  if (trimmedFileName) return trimmedFileName;
+
+  if (!isTextContent(content)) {
+    return getFileNameFromContent(content);
+  }
+
+  return getTextTitle(content);
+};
+
 const isRecentItem = (
   timestamp: Date,
   thresholdMs = 5 * 60 * 1000,
@@ -331,9 +365,10 @@ io.on("connection", async (socket) => {
         });
 
         if (matchingItem) {
+          const nextTitle = matchingItem.title ?? getDefaultTitle(contentToStore);
           const updatedItem = await prisma.copyItem.update({
             where: { id: matchingItem.id },
-            data: { content: contentToStore },
+            data: { content: contentToStore, title: nextTitle },
             include: { user: true },
           });
 
@@ -367,6 +402,7 @@ io.on("connection", async (socket) => {
         const item = await prisma.copyItem.create({
           data: {
             content: contentToStore,
+            title: getDefaultTitle(contentToStore),
             userId,
             workspaceId: allowedWorkspaceId ? payload.workspaceId : null,
           },

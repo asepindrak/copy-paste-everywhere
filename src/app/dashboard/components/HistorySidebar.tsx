@@ -123,6 +123,32 @@ export default function HistorySidebar({
     setEditingTitleValue("");
   };
 
+  const getTextTitle = (content: string, maxLength = 80) => {
+    const firstLine = content
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/\s+/g, " "))
+      .find(Boolean);
+
+    if (!firstLine) return "Untitled";
+    return firstLine.length > maxLength
+      ? `${firstLine.slice(0, maxLength - 3).trimEnd()}...`
+      : firstLine;
+  };
+
+  const getDisplayTitle = (item: CopyItem) => {
+    const title = item.title?.trim();
+    if (title) return title;
+
+    const fileName = item.fileName?.trim();
+    if (fileName) return fileName;
+
+    if (isRemoteFile(item.content)) {
+      return getFileNameFromUrl(item.content);
+    }
+
+    return getTextTitle(item.content);
+  };
+
   const getFileIcon = (content: string) => {
     const type = getFileType(content);
     if (!type) return <FaFileAlt className="h-4 w-4" />;
@@ -256,6 +282,19 @@ export default function HistorySidebar({
                               onChange={(e) =>
                                 setEditingTitleValue(e.target.value)
                               }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  if (!updatingTitleIds.includes(item.id)) {
+                                    void saveTitle(item);
+                                  }
+                                }
+
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  cancelEditingTitle();
+                                }
+                              }}
                               placeholder="Enter title..."
                               className="w-full rounded-2xl border border-gray-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-blue-500/50"
                             />
@@ -280,15 +319,16 @@ export default function HistorySidebar({
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-1 items-center justify-between gap-3">
-                            <p className="truncate text-sm font-semibold text-slate-100">
-                              {item.title?.trim() || "Untitled"}
+                          <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">
+                              {getDisplayTitle(item)}
                             </p>
                             <button
                               type="button"
                               onClick={() => startEditingTitle(item)}
-                              className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
+                              className="shrink-0 rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 transition hover:bg-slate-700 hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
                               title="Edit title"
+                              aria-label="Edit title"
                             >
                               <FaEdit className="h-3.5 w-3.5" />
                             </button>
@@ -402,25 +442,48 @@ export default function HistorySidebar({
                               </svg>
                             )}
                           </button>
-                          {(isImageContent(item.content) ||
-                            isVideoContent(item.content)) && (
+                          {!isRemoteFile(item.content) && (
                             <button
                               onClick={() => setHistoryPreviewItem(item)}
                               className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
                               title={
                                 isVideoContent(item.content)
                                   ? "Preview video"
-                                  : "Preview image"
+                                  : isImageContent(item.content)
+                                    ? "Preview image"
+                                    : "Preview text"
                               }
                               aria-label={
                                 isVideoContent(item.content)
                                   ? "Preview video"
-                                  : "Preview image"
+                                  : isImageContent(item.content)
+                                    ? "Preview image"
+                                    : "Preview text"
                               }
                             >
                               <FaEye className="h-4 w-4" />
                             </button>
                           )}
+                          {isRemoteFile(item.content) &&
+                            (isImageContent(item.content) ||
+                              isVideoContent(item.content)) && (
+                              <button
+                                onClick={() => setHistoryPreviewItem(item)}
+                                className="rounded-lg bg-slate-700/20 p-2 text-slate-200 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 hover:bg-slate-700 hover:text-white"
+                                title={
+                                  isVideoContent(item.content)
+                                    ? "Preview video"
+                                    : "Preview image"
+                                }
+                                aria-label={
+                                  isVideoContent(item.content)
+                                    ? "Preview video"
+                                    : "Preview image"
+                                }
+                              >
+                                <FaEye className="h-4 w-4" />
+                              </button>
+                            )}
                           {(isRemoteFile(item.content) ||
                             item.content.startsWith("data:")) && (
                             <button

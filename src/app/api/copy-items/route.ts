@@ -27,6 +27,46 @@ const isRemoteFileUrl = (value: string) => /^https?:\/\//i.test(value);
 const isFileContent = (value: string) =>
   !isImageContent(value) && !isVideoContent(value) && isRemoteFileUrl(value);
 
+const getTextTitle = (content: string, maxLength = 80) => {
+  const firstLine = content
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/\s+/g, " "))
+    .find(Boolean);
+
+  if (!firstLine) return null;
+  return firstLine.length > maxLength
+    ? `${firstLine.slice(0, maxLength - 3).trimEnd()}...`
+    : firstLine;
+};
+
+const getFileNameFromContent = (value: string) => {
+  try {
+    const parsed = new URL(value);
+    const fileName = parsed.pathname.split("/").pop();
+    return fileName ? decodeURIComponent(fileName) : null;
+  } catch {
+    return null;
+  }
+};
+
+const getDisplayTitle = (
+  content: string,
+  title?: string | null,
+  fileName?: string | null,
+) => {
+  const trimmedTitle = title?.trim();
+  if (trimmedTitle) return trimmedTitle;
+
+  const trimmedFileName = fileName?.trim();
+  if (trimmedFileName) return trimmedFileName;
+
+  if (isImageContent(content) || isVideoContent(content) || isFileContent(content)) {
+    return getFileNameFromContent(content);
+  }
+
+  return getTextTitle(content);
+};
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
 
@@ -74,7 +114,11 @@ export async function GET(req: NextRequest) {
       return {
         id: item.id as string,
         content: item.content as string,
-        title: (item.title as string) ?? null,
+        title: getDisplayTitle(
+          item.content as string,
+          item.title as string | null,
+          item.fileName as string | null,
+        ),
         fileName: item.fileName as string | null,
         fileSize: item.fileSize as number | null,
         workspaceId: item.workspaceId as string | null,

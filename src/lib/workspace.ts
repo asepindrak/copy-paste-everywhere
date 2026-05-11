@@ -5,6 +5,15 @@ export async function getUserWorkspaces(userId: string) {
     where: {
       OR: [{ ownerId: userId }, { members: { some: { userId } } }],
     },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
     orderBy: { updatedAt: "desc" },
   });
 }

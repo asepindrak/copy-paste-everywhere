@@ -68,6 +68,9 @@ body {
       transparent 32%
     ),
     linear-gradient(180deg, #060a10 0%, #070b11 55%, #05080d 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: 100vw 100vh;
 }
 img,
 video,
