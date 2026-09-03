@@ -29,7 +29,10 @@ import {
   FaTimes,
   FaSpinner,
   FaUser,
+  FaFolder,
+  FaClipboardList,
 } from "react-icons/fa";
+import Link from "next/link";
 import Image from "next/image";
 import packageJson from "../../../package.json";
 import DashboardToast from "./components/DashboardToast";
@@ -2506,6 +2509,21 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-slate-400 sm:text-xs">
                   v{appVersion}
                 </p>
+              </div>
+
+              {/* Tab Switcher: Clipboard Sync <-> Cloud Drive */}
+              <div className="hidden sm:flex items-center rounded-xl bg-slate-900/90 p-1 border border-slate-800 ml-2">
+                <div className="flex items-center gap-1.5 rounded-lg bg-sky-500/20 px-2.5 py-1 text-xs font-medium text-sky-400 border border-sky-500/30 shadow-sm">
+                  <FaClipboardList className="h-3 w-3" />
+                  <span>Clipboard</span>
+                </div>
+                <Link
+                  href="/drive"
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-white transition"
+                >
+                  <FaFolder className="h-3 w-3" />
+                  <span>Drive</span>
+                </Link>
               </div>
             </div>
 

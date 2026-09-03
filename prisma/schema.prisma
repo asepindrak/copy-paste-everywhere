@@ -13,6 +13,8 @@ model User {
   image                String?
   password             String
   copyItems            CopyItem[]
+  driveFolders         DriveFolder[]
+  driveFiles           DriveFile[]
   workspacesOwned      Workspace[]       @relation("workspaceOwner")
   workspaceMemberships WorkspaceMember[]
   workspaceInvites     WorkspaceInvite[] @relation("workspaceInvitee")
@@ -32,15 +34,17 @@ enum InviteStatus {
 }
 
 model Workspace {
-  id        String            @id @default(cuid())
-  name      String
-  ownerId   String
-  owner     User              @relation("workspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members   WorkspaceMember[]
-  invites   WorkspaceInvite[]
-  copyItems CopyItem[]
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id           String            @id @default(cuid())
+  name         String
+  ownerId      String
+  owner        User              @relation("workspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      WorkspaceMember[]
+  invites      WorkspaceInvite[]
+  copyItems    CopyItem[]
+  driveFolders DriveFolder[]
+  driveFiles   DriveFile[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@index([ownerId])
 }
@@ -92,3 +96,53 @@ model CopyItem {
   @@index([workspaceId])
   @@index([createdAt])
 }
+
+model DriveFolder {
+  id          String        @id @default(cuid())
+  name        String
+  color       String?
+  parentId    String?
+  parent      DriveFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    DriveFolder[] @relation("FolderHierarchy")
+  files       DriveFile[]
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  isStarred   Boolean       @default(false)
+  isTrash     Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model DriveFile {
+  id          String       @id @default(cuid())
+  name        String
+  size        Int
+  mimeType    String
+  url         String       @db.Text
+  storageType String       @default("local")
+  storageKey  String?      @db.Text
+  folderId    String?
+  folder      DriveFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  isStarred   Boolean      @default(false)
+  isTrash     Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([folderId])
+  @@index([createdAt])
+  @@index([mimeType])
+}
+
