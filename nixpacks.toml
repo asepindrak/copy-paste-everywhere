@@ -5,6 +5,10 @@ NODE_ENV = "production"
 NPM_CONFIG_UPDATE_NOTIFIER = "false"
 NIXPACKS_NODE_VERSION = "22"
 
-[phases.setup]
-cmds = ["npm install -g corepack@latest"]
+[phases.install]
+cmds = [
+  "npm install -g pnpm@11.9.0",
+  "pnpm i --frozen-lockfile"
+]
+
 
