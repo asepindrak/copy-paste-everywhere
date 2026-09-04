@@ -27,6 +27,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "cross-env NODE_ENV=development TS_NODE_COMPILER_OPTIONS=\"{\\\"module\\\":\\\"commonjs\\\"}\" ts-node server.ts",
     "build": "next build && tsc server.ts --outDir dist --module commonjs --esModuleInterop --skipLibCheck",
